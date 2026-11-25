@@ -15,7 +15,7 @@ requires      = ["maturin>=1.16,<2.0"]
 
 [project]
 name = "fastsandbox"
-version = "0.1.0"
+version = "0.1.1"
 description = "Docker Sandboxes for Python: a typed async client and a declarative framework for tasks and AI agents in sandboxes"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
