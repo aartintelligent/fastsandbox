@@ -9,5 +9,12 @@
   "homepage": "https://aartintelligent.github.io/fastsandbox/",
   "repository": "https://github.com/aartintelligent/fastsandbox",
   "license": "MIT OR Apache-2.0",
-  "keywords": ["fastsandbox", "docker-sandboxes", "sbx", "sandbox", "coding-agents", "python"]
+  "keywords": [
+    "fastsandbox",
+    "docker-sandboxes",
+    "sbx",
+    "sandbox",
+    "coding-agents",
+    "python"
+  ]
 }
