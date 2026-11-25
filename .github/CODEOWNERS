@@ -1,0 +1,10 @@
+# ------------------------------------------------------------------------------
+# CODEOWNERS — who reviews each pull request.
+#
+# GitHub requests a review from the owners of the files a pull request changes,
+# Dependabot's and release-please's included. A team is honoured only when it
+# has write access to the repository.
+# ------------------------------------------------------------------------------
+
+# The whole repository: the package, the extension, the examples and the CI.
+* @aartintelligent/aart-developers

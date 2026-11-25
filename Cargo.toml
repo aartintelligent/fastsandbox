@@ -1,0 +1,78 @@
+# ------------------------------------------------------------------------------
+# fastsandbox — the Cargo workspace of the repository: its member list, shared
+# package metadata, the lint policy every member inherits, and the release
+# build profile.
+#
+# `fastsandbox-native/` is the one crate: the native extension of the Python
+# package, built by maturin (pyproject.toml) into `fastsandbox._native`. The
+# Python package itself is `fastsandbox/`, at the root.
+# ------------------------------------------------------------------------------
+
+[workspace]
+members  = ["fastsandbox-native"]
+resolver = "3"
+
+# Metadata inherited by every member through `<key>.workspace = true`.
+[workspace.package]
+authors = ["Aurelien Andre <aurelien.andre@aartintelligent.fr>"]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+# The extension ships in the Python package, never on crates.io.
+publish = false
+# The MSRV of `docker-sandbox`; PyO3 itself needs 1.85.
+rust-version = "1.88"
+version      = "0.1.0"
+
+# ------------------------------------------------------------------------------
+# Quality gates — the policy of `docker-sandbox`, inherited by every member
+# through `[lints] workspace = true`. Never silence one of these locally
+# without a written justification.
+# ------------------------------------------------------------------------------
+
+[workspace.lints.rust]
+# Every public type should be printable while debugging.
+missing_debug_implementations = "warn"
+# Every item exposed to Python carries English documentation: it becomes the
+# docstring.
+missing_docs = "warn"
+# Edition-2018 idioms (explicit `dyn`, no extern crate, ...); lower priority so
+# that individual lints below can still override it.
+rust_2018_idioms = { level = "warn", priority = -1 }
+# Catches `pub` items that are not actually reachable from outside the crate.
+unreachable_pub = "warn"
+# No unsafe code of our own; `deny` rather than `forbid`, since the PyO3
+# macros expand to unsafe code they allow themselves.
+unsafe_code = "deny"
+# Paths that are already imported should not be spelled out again.
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+# The default lint set plus the pedantic group, both at low priority so that
+# the explicit allows and warns below take precedence.
+all      = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Names like `client::ClientHandle` are the conventional vocabulary of a module.
+module_name_repetitions = "allow"
+# Leftover debugging output.
+dbg_macro    = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+# Unfinished code must not ship.
+todo          = "warn"
+unimplemented = "warn"
+# Panics on `Option`/`Result` in library code; tests are exempt via clippy.toml.
+unwrap_used = "warn"
+
+[workspace.lints.rustdoc]
+# A broken `[link]` in rustdoc is a documentation bug, not a warning.
+broken_intra_doc_links = "deny"
+
+# ------------------------------------------------------------------------------
+# Build profiles — release wheels trade compile time for a smaller, faster
+# extension.
+# ------------------------------------------------------------------------------
+
+[profile.release]
+codegen-units = 1
+lto           = "fat"
+strip         = true

@@ -1,0 +1,65 @@
+{#-
+  Home page template: the hero alone, full viewport, over the animated
+  sandbox that `home.js` draws on its canvas; `docs/index.md` holds only its
+  front matter.
+
+  The hero goes in the `hero` block, which the base template places inside
+  the container, before the tabs and the main area; the main area stays, empty
+  and hidden by `home.css`, because on narrow screens it also holds the
+  navigation drawer that the header's menu button opens. On wide screens the
+  text sits on the left and the sandbox on the right; on narrow ones the
+  sandbox stands behind the text, under a veil. Without JavaScript the canvas
+  stays empty and the hero is the text on its dark background. `home.css` is
+  loaded here only; `home.js` comes with every page (see `main.html`), so that
+  the hero also moves when it is reached by the theme's instant navigation.
+-#}
+{% extends "main.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ 'assets/stylesheets/home.css' | url }}">
+{% endblock %}
+
+{% block hero %}
+  <section class="fs-hero">
+    <canvas class="fs-hero__canvas" aria-hidden="true"></canvas>
+    <div class="md-grid fs-hero__inner">
+      <div class="fs-hero__content">
+        <p class="fs-hero__eyebrow">Docker Sandboxes for Python</p>
+        <h1>Coding agents,<br><span>in throw-away sandboxes.</span></h1>
+        <p class="fs-hero__lead">
+          A typed async client and a declarative framework over Docker
+          Sandboxes (<code>sbx</code>). Declare an agent task: every run gets
+          its own microVM, its own network rules and its own credentials, and
+          is deleted when it ends.
+        </p>
+        <p class="fs-hero__requires">
+          Requires <a href="https://docs.docker.com/ai/sandboxes/" target="_blank"
+          rel="noopener">Docker Sandboxes</a> on the machine: fastsandbox connects
+          to the socket of its daemon.
+        </p>
+        <button class="fs-hero__install" type="button" data-copy="uv add fastsandbox"
+                title="Copy to the clipboard">
+          <span class="fs-hero__prompt" aria-hidden="true">$</span>
+          <code>uv add fastsandbox</code>
+          <span class="fs-hero__copied" aria-live="polite"></span>
+        </button>
+        <div class="fs-hero__actions">
+          <a href="{{ 'get-started/quickstart/' | url }}" class="md-button md-button--primary">
+            Quickstart
+          </a>
+          <a href="{{ 'overview/why/' | url }}" class="md-button">
+            Why fastsandbox
+          </a>
+        </div>
+        <p class="fs-hero__note">
+          An independent project, not affiliated with Docker, Inc.
+        </p>
+      </div>
+    </div>
+  </section>
+{% endblock %}
+
+{#- The home page is the hero alone: no content under it, no footer. -#}
+{% block content %}{% endblock %}
+{% block footer %}{% endblock %}

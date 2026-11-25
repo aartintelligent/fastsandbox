@@ -1,0 +1,42 @@
+# ------------------------------------------------------------------------------
+# git — files that never belong in the repository.
+# ------------------------------------------------------------------------------
+
+# Rust build output.
+target/
+
+# The native extension maturin copies into the package for editable installs.
+fastsandbox/_native*.so
+fastsandbox/_native*.pyd
+
+# Python environments, caches and build output.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# The documentation site Zensical builds, and its build cache.
+/site/
+/.cache/
+
+# IDE and agent state.
+/.idea/
+/.vscode/
+*.iml
+/.claude/settings.local.json
+
+# OS metadata.
+.DS_Store
+Thumbs.db
+
+# Coverage reports.
+/lcov.info
+/coverage/

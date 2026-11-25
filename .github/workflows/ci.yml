@@ -1,0 +1,397 @@
+# ------------------------------------------------------------------------------
+# CI — the checks of pull requests, of the merge queue and of `main`.
+#
+# A pull request runs only the jobs its changes concern: the `changes` job maps
+# the changed files to areas (native extension, Python package, coverage,
+# packaging, documentation, dependencies), and a job whose area is untouched is
+# skipped. The
+# merge queue and `main` run every job, so that `main` is always fully checked
+# and keeps the caches that pull requests restore warm. `ci-ok` aggregates the
+# jobs into the single status check that branch protection requires; a skipped
+# job counts as a success.
+#
+# The `justfile` mirrors these jobs for local runs (`just ci`). Tests run on
+# Linux with the oldest and the newest supported Python, and also on macOS when
+# the package or the extension changes: the daemon is reached through a Unix
+# socket. The live tests and the examples need a real `sbx` daemon and never
+# run here, and no job reads a secret: Codecov authenticates through OIDC.
+#
+# Every action is pinned to the commit of a release, its tag in a comment:
+# a moved tag cannot change what runs, and Dependabot bumps both together.
+# ------------------------------------------------------------------------------
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels its previous run; runs of `main` and of
+# the merge queue always finish, so that every commit of `main` gets a status
+# and the caches are saved.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_BUILD_WARNINGS: deny
+  RUST_BACKTRACE: 1
+  # uv must not rewrite `uv.lock`: a stale lockfile fails the job instead.
+  UV_LOCKED: 1
+  FORCE_COLOR: 1
+
+jobs:
+  # Maps the files a pull request changes to the areas the other jobs guard.
+  # Outside pull requests, every area counts as changed.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      native: ${{ steps.areas.outputs.native }}
+      python: ${{ steps.areas.outputs.python }}
+      coverage: ${{ steps.areas.outputs.coverage }}
+      packaging: ${{ steps.areas.outputs.packaging }}
+      docs: ${{ steps.areas.outputs.docs }}
+      dependencies: ${{ steps.areas.outputs.dependencies }}
+      test-matrix: ${{ steps.areas.outputs.test-matrix }}
+    steps:
+      - id: areas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            files=$(gh api "repos/$REPOSITORY/pulls/$PULL_REQUEST/files" --paginate --jq '.[].filename')
+            printf 'Changed files:\n%s\n' "$files"
+          fi
+          # Whether a changed file matches the extended regular expression $1;
+          # always true outside pull requests.
+          changed() { [ "$EVENT" != pull_request ] || grep -qE "$1" <<< "$files"; }
+          # Writes `$1=true` when a changed file matches $2, `$1=false` otherwise.
+          area() {
+            if changed "$2"; then echo "$1=true"; else echo "$1=false"; fi >> "$GITHUB_OUTPUT"
+          }
+          # What everything is built with: the manifests and lockfiles, the
+          # toolchain, the lint configuration, and this workflow.
+          shared='^(Cargo\.(toml|lock)|rust-toolchain\.toml|clippy\.toml|pyproject\.toml|uv\.lock|\.github/workflows/ci\.yml)$'
+          # The native extension, which every Python job builds.
+          native="$shared|^fastsandbox-native/"
+          area native "$native"
+          # The package and what tests it: its tests, the snippets of its
+          # documentation, the examples and the Claude Code plugin with its
+          # project templates, linted and type-checked with it, and the pages
+          # whose completeness tests/test_docs.py checks.
+          library="$native|^fastsandbox/"
+          python="$library|^(tests|docs_src|examples|docs|plugins|\.claude-plugin)/|^zensical\.toml$"
+          area python "$python"
+          # What Codecov reports on: the package, and its own configuration,
+          # applied to the upload of the pull request that changes it.
+          area coverage "$library|^tests/|^codecov\.yml$"
+          # What goes into the wheels and the sdist, and how they are built.
+          area packaging "$library|^(README\.md|LICENSE-[A-Z]+)$"
+          # The documentation site: its pages, theme overrides and configuration,
+          # the snippets and files it includes, and the package whose docstrings
+          # it renders.
+          area docs "$shared|^fastsandbox/|^(docs|docs_src|overrides)/|^(zensical\.toml|SECURITY\.md)$"
+          area dependencies '^(Cargo\.(toml|lock)|pyproject\.toml|uv\.lock|deny\.toml)$|^fastsandbox-native/Cargo\.toml$|^\.github/workflows/ci\.yml$'
+          # macOS runners are the slowest and the dearest: the tests run there
+          # when the package or the extension changes, the only code that
+          # depends on the platform. Both run the oldest Python the package
+          # supports, the one its abi3 wheel targets.
+          if changed "$library"; then
+            echo 'test-matrix={"include": [{"os": "ubuntu-latest", "python": "3.14"}, {"os": "macos-latest", "python": "3.14"}]}'
+          else
+            echo 'test-matrix={"include": [{"os": "ubuntu-latest", "python": "3.14"}]}'
+          fi >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+  # Guards formatting (`cargo fmt` for Rust, `taplo` for TOML, `ruff format`
+  # for Python) and spelling (`[tool.typos]` in pyproject.toml). Nothing is
+  # compiled, so it runs on every change.
+  format:
+    name: Format & spelling
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rust-toolchain.toml pins the toolchain and its components.
+      - run: rustup toolchain install
+      - uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
+        with:
+          tool: taplo
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      - run: cargo fmt --all --check
+      - run: taplo fmt --check
+      # The `dev` group alone: ruff, at the version of `uv.lock`, without
+      # building the package.
+      - run: uv run --only-group dev ruff format --check
+      - uses: crate-ci/typos@276087d9a4f06398b3e04825487805e2d7375888 # v1.52.2
+
+  # Guards the lint policy of the extension: clippy on every target, warnings
+  # as errors, with a lockfile that must be up to date.
+  clippy:
+    name: Clippy
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+
+  # Guards the lint and typing policy of the Python code: ruff, and mypy in
+  # strict mode on the package and the examples. mypy reads the stubs of the
+  # extension (`_native.pyi`), so nothing is compiled: the dependencies of the
+  # package and of the examples are installed, the package itself is not.
+  python-lint:
+    name: Ruff & mypy
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: "3.14"
+      - run: uv sync --no-install-project
+      - run: uv run --no-sync ruff check
+      - run: uv run --no-sync mypy
+
+  # Guards behavior: the test suite against the fake daemon, the snippets of
+  # the documentation and the checks of the examples, with the extension built
+  # as `uv sync` builds it. The live tests stay out: they need a real daemon.
+  test:
+    name: Test (${{ matrix.os }}, Python ${{ matrix.python }})
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.test-matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync
+      - run: uv run --no-sync pytest
+
+  # Guards the coverage of the package: at least the share of its lines that
+  # `[tool.coverage.report] fail_under` sets must run under the tests. The gate
+  # is enforced here, after the upload, so that Codecov still annotates the
+  # uncovered lines of a failing pull request and an outage of the service
+  # blocks nothing.
+  coverage:
+    name: Coverage
+    needs: changes
+    if: needs.changes.outputs.coverage == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # `id-token` lets the upload authenticate through OIDC, without a token
+    # stored in the repository secrets.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: "3.14"
+      - run: uv sync
+      - run: uv run --no-sync pytest --cov --cov-report=xml --cov-report=term
+      # Merge-queue commits are temporary: Codecov tracks `main` and the pull
+      # requests.
+      - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        if: github.event_name != 'merge_group'
+        with:
+          files: coverage.xml
+          disable_search: true
+          use_oidc: true
+      - run: uv run --no-sync coverage report
+
+  # Guards the documentation site: Zensical builds it in strict mode, so that a
+  # broken link or anchor, a missing snippet of `docs_src/` or an API reference
+  # that does not resolve fails the job. mkdocstrings reads the docstrings and
+  # the stubs of the extension without importing the package: only the `docs`
+  # group is installed, and nothing is compiled. `.github/workflows/docs.yml`
+  # publishes the site built the same way.
+  docs:
+    name: Docs
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: "3.14"
+      - run: uv run --only-group docs zensical build --clean --strict
+
+  # Guards the MSRV: the extension compiles on exactly the `rust-version` of
+  # Cargo.toml.
+  msrv:
+    name: MSRV
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rust-toolchain.toml would otherwise override the MSRV toolchain.
+      - name: Select the MSRV toolchain
+        run: |
+          msrv=$(awk -F'"' '/^rust-version/ {print $2; exit}' Cargo.toml)
+          rustup toolchain install "$msrv" --profile minimal
+          echo "RUSTUP_TOOLCHAIN=$msrv" >> "$GITHUB_ENV"
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo check --locked --workspace --all-targets
+
+  # Guards the distributions: the sdist and a release wheel build as the
+  # release workflow builds them, the wheel installs into a clean environment
+  # and imports, and its version is that of pyproject.toml.
+  package:
+    name: Package
+    needs: changes
+    if: needs.changes.outputs.packaging == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          command: sdist
+          args: --out dist
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          command: build
+          args: --release --out dist
+          manylinux: auto
+          sccache: true
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: "3.14"
+      - name: Install the wheel and import it
+        run: |
+          version=$(awk -F'"' '/^version/ {print $2; exit}' pyproject.toml)
+          uv venv "$RUNNER_TEMP/venv"
+          uv pip install --python "$RUNNER_TEMP/venv/bin/python" dist/*.whl
+          # Outside the checkout, so that the sources do not shadow the wheel.
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/venv/bin/python" -c '
+          import sys, fastsandbox
+          assert fastsandbox.__version__ == sys.argv[1], (fastsandbox.__version__, sys.argv[1])
+          print("fastsandbox", fastsandbox.__version__, "from", fastsandbox.__file__)
+          ' "$version"
+          "$RUNNER_TEMP/venv/bin/fastsandbox" --help > /dev/null
+
+  # Guards the supply chain when a manifest, a lockfile or the policy changes:
+  # the Rust dependencies against deny.toml (advisories, licences, bans,
+  # sources), and the Python ones of `uv.lock` against the advisories of PyPI.
+  deny:
+    name: Dependencies
+    needs: changes
+    if: needs.changes.outputs.dependencies == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: EmbarkStudios/cargo-deny-action@81891abc19297b21343b15ef67dc61e4aea74fda # v2.1.4
+        with:
+          command: check
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+      # Every locked dependency, pinned and hashed, the package itself aside.
+      - run: uv export --all-groups --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/requirements.txt"
+      - run: uv run --only-group dev pip-audit --strict --disable-pip --requirement "$RUNNER_TEMP/requirements.txt"
+
+  # Guards the history: every commit of a pull request must be a Conventional
+  # Commit (committed.toml), since release-please derives versions and the
+  # changelog from them.
+  commits:
+    name: Commits
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: crate-ci/committed@02af07ed1d11ad69a96ab75f08c9831a4e2c00da # v1.1.12
+        with:
+          args: -vv --no-merge-commit
+          # The default range walks `HEAD~N` through the merge commit's first
+          # parent, which is `main`, so it falls off the end of a short history.
+          commits: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+
+  # Single required status check for branch protection — green only when every
+  # job it needs succeeded or was skipped.
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs:
+      - changes
+      - format
+      - clippy
+      - python-lint
+      - test
+      - coverage
+      - docs
+      - msrv
+      - package
+      - deny
+      - commits
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -e '
+            to_entries | all(.value.result == "success" or .value.result == "skipped")'

@@ -1,0 +1,13 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: mixin
+displayName: Example mixin
+description: Mixin of the fastsandbox examples, writes a marker file at install time.
+version: "0.1.0"
+capabilities:
+  - type: com.docker.sandbox/lifecycle@1
+    config:
+      install:
+        - command: echo "example mixin installed" > /home/agent/example-mixin.txt
+          user: agent
+          description: Writes a marker file

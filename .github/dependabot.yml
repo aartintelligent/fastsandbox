@@ -1,0 +1,50 @@
+# ------------------------------------------------------------------------------
+# Dependabot — weekly dependency update PRs for uv, Cargo and GitHub Actions.
+#
+# One entry per lockfile: `uv.lock` (the package, its tools and the examples)
+# and `Cargo.lock` (the extension). Minor and patch bumps are grouped into one
+# PR per ecosystem; major bumps come alone. All Actions bumps are grouped.
+# Commit messages are Conventional Commits (`build(deps)`, `ci(deps)`), types
+# release-please leaves out of the changelog. rust-toolchain.toml is bumped by
+# hand.
+# ------------------------------------------------------------------------------
+
+version: 2
+updates:
+  # Python dependencies of the package, its development tools and the
+  # examples.
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      python-minor-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build
+      include: scope
+    labels: [dependencies, python]
+  # Cargo dependencies of the extension.
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      cargo-minor-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build
+      include: scope
+    labels: [dependencies, rust]
+  # Actions used by the workflows.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+      include: scope
+    labels: [dependencies, ci]

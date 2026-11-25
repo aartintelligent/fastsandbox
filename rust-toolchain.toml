@@ -1,0 +1,14 @@
+# ------------------------------------------------------------------------------
+# rustup — the development toolchain used locally and by CI.
+#
+# Pinned so that a new stable release cannot break local development or CI on
+# its own; the same pin as `docker-sandbox`. Bump deliberately.
+#
+# This is not the MSRV: `rust-version` in Cargo.toml (1.88, the MSRV of
+# `docker-sandbox`) is what the extension needs at least.
+# ------------------------------------------------------------------------------
+
+[toolchain]
+channel    = "1.97.1"
+components = ["clippy", "rustfmt"]
+profile    = "minimal"

@@ -1,0 +1,16 @@
+{#-
+  The template of every page: the theme's own, plus the script of the home
+  page's animation.
+
+  The theme's instant navigation swaps the content of a page without loading
+  the scripts of the new one, so a reader who reaches the home page from
+  another page would find its hero still. `home.js` is therefore loaded on
+  every page: it watches the theme's `document$` and draws only when the page
+  has the hero of `home.html`, doing nothing elsewhere.
+-#}
+{% extends "base.html" %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ 'assets/javascripts/home.js' | url }}" defer></script>
+{% endblock %}

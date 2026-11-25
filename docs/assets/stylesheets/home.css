@@ -1,0 +1,283 @@
+/* ---------------------------------------------------------------------------
+   Home page styles — the hero of `overrides/home.html`, the whole page.
+
+   `home.html` links this file itself, so it is loaded on the home page only
+   and its rules never reach the other pages; it is not in `extra_css`. The
+   hero is dark whatever the color scheme, like the sandbox drawn on it: near
+   black, white and silver, with the indigo of the site's palette kept for the
+   primary button.
+   --------------------------------------------------------------------------- */
+
+.fs-hero {
+    --fs-ink: #07080b;
+    --fs-indigo: #6f7dff;
+    --fs-indigo-light: #a3adff;
+
+    position: relative;
+    display: flex;
+    overflow: hidden;
+    /* The header and the sticky tabs take 4.8rem; the rest of the viewport is
+       the hero. `svh` is the viewport with the mobile address bar shown, so
+       the hero never hides under it; `vh` is the fallback. */
+    min-height: calc(100vh - 4.8rem);
+    min-height: calc(100svh - 4.8rem);
+    color: #ffffff;
+    background:
+        radial-gradient(ellipse 60% 70% at 70% 52%, #171920 0%, rgba(23, 25, 32, 0) 70%),
+        var(--fs-ink);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* The canvas covers the hero under the text; `home.js` sizes it. */
+.fs-hero__canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* A faint grain over the whole hero: it dithers the dark gradients, which
+   would otherwise show as bands on 8-bit screens. */
+.fs-hero::before {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    content: "";
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Wide screens: the sandbox stands on the right, the text on the left, over
+   a veil that darkens the grid behind it and fades out before the cube. */
+.fs-hero::after {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    content: "";
+    pointer-events: none;
+    background: linear-gradient(
+        to right,
+        rgba(7, 8, 11, 0.88) 0%,
+        rgba(7, 8, 11, 0.74) 22%,
+        rgba(7, 8, 11, 0.45) 36%,
+        rgba(7, 8, 11, 0.15) 46%,
+        rgba(7, 8, 11, 0) 54%
+    );
+}
+
+.fs-hero__inner {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    /* The text column; the rest of the width is the sandbox's. `minmax(0, …)`
+       keeps a long word from widening it. */
+    grid-template-columns: minmax(0, 30rem);
+    align-content: center;
+    width: 100%;
+    padding: 3rem 1.2rem;
+}
+
+.fs-hero__eyebrow {
+    margin: 0 0 1rem;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--fs-indigo-light);
+}
+
+.fs-hero h1 {
+    margin: 0 0 1rem;
+    /* Two lines in the 30rem column: the second one is the longest. */
+    font-size: 2.35rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.08;
+    color: #ffffff;
+}
+
+/* The second line in silver, as the edges of the glass. */
+.fs-hero h1 span {
+    color: transparent;
+    background: linear-gradient(100deg, #ffffff 0%, #c9cdd8 45%, #8a90a0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.fs-hero__lead {
+    max-width: 26rem;
+    margin: 0 0 1.4rem;
+    font-size: 0.86rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.fs-hero__lead code {
+    padding: 0.05em 0.3em;
+    font-size: 0.85em;
+    color: #ffffff;
+    border-radius: 0.2rem;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* What the package needs on the machine, between the lead and the install
+   command: Docker Sandboxes, whose daemon it connects to. */
+.fs-hero__requires {
+    max-width: 26rem;
+    margin: -0.6rem 0 1rem;
+    font-size: 0.68rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.62);
+}
+
+.fs-hero__requires a {
+    color: var(--fs-indigo-light);
+    text-decoration: underline;
+    text-decoration-color: rgba(163, 173, 255, 0.4);
+    text-underline-offset: 0.15em;
+}
+
+.fs-hero__requires a:hover,
+.fs-hero__requires a:focus-visible {
+    text-decoration-color: currentcolor;
+}
+
+/* The install command: a terminal line that copies itself when clicked. */
+.fs-hero__install {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 1.4rem;
+    padding: 0.55rem 0.9rem;
+    font: inherit;
+    font-size: 0.72rem;
+    color: #e8eaf2;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 0.4rem;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(4px);
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.fs-hero__install:hover,
+.fs-hero__install:focus-visible {
+    border-color: rgba(255, 255, 255, 0.32);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.fs-hero__install code {
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+    background: transparent;
+}
+
+.fs-hero__prompt {
+    font-family: var(--md-code-font-family);
+    color: #7c8290;
+}
+
+.fs-hero__copied {
+    font-size: 0.6rem;
+    color: var(--fs-indigo-light);
+}
+
+.fs-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin: 0 0 1.6rem;
+}
+
+/* Pill buttons: indigo for the way in, an outline for the rest. */
+.fs-hero__actions .md-button {
+    margin: 0;
+    padding: 0.55em 1.5em;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+
+.fs-hero__actions .md-button:hover,
+.fs-hero__actions .md-button:focus {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.fs-hero__actions .md-button--primary {
+    border-color: var(--fs-indigo);
+    background: var(--fs-indigo);
+    box-shadow: 0 0 1.6rem rgba(111, 125, 255, 0.35);
+}
+
+.fs-hero__actions .md-button--primary:hover,
+.fs-hero__actions .md-button--primary:focus {
+    border-color: var(--fs-indigo-light);
+    background: #7f8cff;
+    box-shadow: 0 0 2rem rgba(111, 125, 255, 0.55);
+}
+
+.fs-hero__note {
+    margin: 0;
+    font-size: 0.6rem;
+    color: #7c8290;
+}
+
+/* Narrow screens: the sandbox stands in the upper part of the hero, the text
+   at the bottom, over a veil that is darkest where the text is. The tabs are
+   hidden at this width, so only the 2.4rem header sits above the hero. */
+@media screen and (max-width: 76.1875em) {
+    .fs-hero {
+        min-height: calc(100vh - 2.4rem);
+        min-height: calc(100svh - 2.4rem);
+        background:
+            radial-gradient(ellipse 80% 45% at 50% 30%, #171920 0%, rgba(23, 25, 32, 0) 70%),
+            var(--fs-ink);
+    }
+
+    .fs-hero::after {
+        background: linear-gradient(
+            to top,
+            rgba(7, 8, 11, 0.95) 0%,
+            rgba(7, 8, 11, 0.8) 40%,
+            rgba(7, 8, 11, 0) 70%
+        );
+    }
+
+    .fs-hero__inner {
+        grid-template-columns: minmax(0, 32rem);
+        align-content: end;
+        padding-top: 16rem;
+    }
+}
+
+/* Small phones: a smaller title, on three lines, and less room above it. */
+@media screen and (max-width: 29.9844em) {
+    .fs-hero h1 {
+        font-size: 1.9rem;
+    }
+
+    .fs-hero__inner {
+        padding-top: 13rem;
+    }
+}
+
+/* The home page is the hero alone. Only the empty content goes: the main
+   area stays, because on narrow screens it holds the navigation drawer the
+   header's menu button opens. The sidebars are hidden by the front matter of
+   `docs/index.md`. */
+.md-main__inner {
+    margin-top: 0;
+}
+
+.md-content {
+    display: none;
+}

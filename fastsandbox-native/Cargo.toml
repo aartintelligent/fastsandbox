@@ -1,0 +1,53 @@
+# ------------------------------------------------------------------------------
+# fastsandbox-native — the native extension of the `fastsandbox` package.
+#
+# A PyO3 binding of `docker-sandbox`, the typed client of the `sandboxd` socket
+# of Docker Sandboxes, built by maturin into `fastsandbox._native`. It only
+# bridges the library: its handles, its async calls on a shared tokio runtime,
+# its streams and its errors. Models, the client API and the FastSandbox
+# framework are Python, in `fastsandbox/` at the root of the repository.
+#
+# Payloads cross the boundary as plain Python objects (`pythonize`) in the
+# serde shape of `docker-sandbox`, the shape of the daemon API; the Pydantic
+# models of the package validate them.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "fastsandbox-native"
+description            = "Native extension of fastsandbox: docker-sandbox for Python"
+authors.workspace      = true
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# The extension module maturin installs as `fastsandbox._native`.
+[lib]
+name       = "_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Byte payloads of files, archives and interactive sessions.
+bytes = "1"
+# The library the extension exposes; the kit compiler is part of the API.
+docker-sandbox = { version = "0.1.1", features = ["kit-compiler"] }
+# `StreamExt::next` over the streams of the library.
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+# One wheel per platform for every CPython from 3.14 (the stable ABI).
+pyo3 = { version = "0.30.1", features = ["abi3-py314"] }
+# Runs every call on a shared tokio runtime and hands Python an awaitable whose
+# cancellation drops the Rust future.
+pyo3-async-runtimes = { version = "0.30.0", features = ["tokio-runtime"] }
+# serde types of the library to and from Python objects.
+pythonize  = "0.30.0"
+serde      = "1"
+serde_json = "1"
+# The runtime the library needs (`tokio::spawn`, timers, sockets), standard
+# input and output for the SSH relay, and the lock that serializes the reads of
+# a stream shared with Python.
+tokio = { version = "1", features = ["io-std", "io-util", "rt-multi-thread", "sync", "time"] }
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true

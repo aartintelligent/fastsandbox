@@ -1,0 +1,15 @@
+{
+  "name": "fastsandbox",
+  "description": "The Claude Code plugin of fastsandbox, the Python package of Docker Sandboxes.",
+  "owner": {
+    "name": "Aurelien Andre",
+    "url": "https://github.com/aartintelligent"
+  },
+  "plugins": [
+    {
+      "name": "fastsandbox",
+      "source": "./plugins/fastsandbox",
+      "description": "Build with fastsandbox, the Python package of Docker Sandboxes: the client, tasks in throw-away sandboxes, coding agents, tests and troubleshooting."
+    }
+  ]
+}

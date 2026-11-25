@@ -1,0 +1,49 @@
+# Compatibility
+
+## Docker Sandboxes
+
+fastsandbox is a client of [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/)
+and needs it on the machine it runs on: it connects to the Unix socket of its
+daemon, `sandboxd`, and does nothing without it.
+
+| | |
+|---|---|
+| Platforms | Linux and macOS, where Docker Sandboxes runs |
+| The daemon | Installed and running for the current user: `sbx version` answers |
+| The `sbx` CLI | On `PATH`, to compile a [kit](../client/kits.md) on its first use |
+| The socket API | The range of versions in [`SUPPORTED_API`][fastsandbox.SUPPORTED_API] |
+
+The `sandboxd` socket API is private and changes with `sbx` releases. Each
+release of fastsandbox is checked against a range of API versions, and
+`connect()` refuses a daemon outside it unless told otherwise;
+[The API version](../client/index.md#the-api-version) explains the policy, and
+`fastsandbox info` prints the version of the daemon next to the supported
+range.
+
+## Python
+
+| | |
+|---|---|
+| Python | 3.14 or newer |
+| Wheels | CPython 3.14 and later (abi3), Linux x86_64 and aarch64, macOS x86_64 and arm64 |
+| Dependencies | Pydantic 2 |
+| Typing | Typed (`py.typed`), checked with mypy in strict mode |
+| Tested | Python 3.14 on Linux on every change, and on macOS when the package or the extension changes |
+
+The wheels hold the native extension, so nothing is compiled on installation.
+Building from source needs a Rust toolchain (1.88 or newer) and
+[uv](https://docs.astral.sh/uv/); see [Installation](../get-started/installation.md).
+
+## Agents
+
+The agents of `@app.agent` are those `sbx` knows, by the name of their kit:
+`claude`, `codex`, `copilot`, `cursor`, `devin`, `docker-agent`, `droid`,
+`kiro` and `opencode`. The credentials each one reads from the environment
+are listed on the [agents page](../framework/agents.md#the-agents).
+
+## Versioning
+
+fastsandbox is in alpha, published on [PyPI](https://pypi.org/project/fastsandbox/).
+Its versions are derived from the Conventional Commits since the last release:
+before 1.0, a breaking change bumps the minor version and a feature the patch
+version. The changelog is generated from the same commits.

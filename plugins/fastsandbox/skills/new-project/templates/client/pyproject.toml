@@ -1,0 +1,23 @@
+# ------------------------------------------------------------------------------
+# pyproject — my-probe: a tool that drives Docker Sandboxes with the client of
+# fastsandbox.
+#
+# `uv run python probe.py` creates a throw-away sandbox, asks it what it runs,
+# and deletes it; `uv run pytest` runs the tests, which need no daemon.
+# ------------------------------------------------------------------------------
+
+[project]
+name            = "my-probe"
+version         = "0.1.0"
+description     = "What a throw-away sandbox of Docker Sandboxes runs"
+requires-python = ">=3.14"
+dependencies    = ["fastsandbox>=0.1"]
+
+[dependency-groups]
+dev = ["pytest>=9", "pytest-asyncio>=1.5"]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+asyncio_mode                       = "auto"
+pythonpath                         = ["."]
+testpaths                          = ["tests"]

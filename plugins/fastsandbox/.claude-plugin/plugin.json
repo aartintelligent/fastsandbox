@@ -1,0 +1,13 @@
+{
+  "name": "fastsandbox",
+  "version": "0.1.0",
+  "description": "Build with fastsandbox, the Python package of Docker Sandboxes: the client, tasks in throw-away sandboxes, coding agents, tests and troubleshooting, with project scaffolding, a doctor and a reviewer.",
+  "author": {
+    "name": "Aurelien Andre",
+    "url": "https://github.com/aartintelligent"
+  },
+  "homepage": "https://aartintelligent.github.io/fastsandbox/",
+  "repository": "https://github.com/aartintelligent/fastsandbox",
+  "license": "MIT OR Apache-2.0",
+  "keywords": ["fastsandbox", "docker-sandboxes", "sbx", "sandbox", "coding-agents", "python"]
+}

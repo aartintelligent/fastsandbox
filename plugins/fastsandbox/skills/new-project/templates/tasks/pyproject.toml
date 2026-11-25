@@ -1,0 +1,27 @@
+# ------------------------------------------------------------------------------
+# pyproject — my-checks: the checks of a project, run on a copy of it in a
+# throw-away sandbox of Docker Sandboxes, with fastsandbox.
+#
+# `fastsandbox run check --repo .` runs the task of `checks.py`
+# (`[tool.fastsandbox] app`); `uv run pytest` runs the tests, which need no
+# daemon.
+# ------------------------------------------------------------------------------
+
+[project]
+name            = "my-checks"
+version         = "0.1.0"
+description     = "The checks of a project, run in throw-away sandboxes"
+requires-python = ">=3.14"
+dependencies    = ["fastsandbox>=0.1"]
+
+[dependency-groups]
+dev = ["pytest>=9", "pytest-asyncio>=1.5"]
+
+[tool.fastsandbox]
+app = "checks.py"
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+asyncio_mode                       = "auto"
+pythonpath                         = ["."]
+testpaths                          = ["tests"]

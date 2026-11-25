@@ -1,0 +1,200 @@
+# ------------------------------------------------------------------------------
+# Release — release PRs, then the wheels, PyPI and the GitHub release.
+#
+# The last stage of the pipeline: a pull request is checked by CI, merged into
+# `main`, then collected here. release-please (release-please-config.json)
+# opens or refreshes the release PR: the next version, derived from the
+# Conventional Commits since the last release, written into pyproject.toml,
+# Cargo.toml and both lockfiles, and the changelog. CI checks that PR like any
+# other. Merging it makes release-please tag the version and create its GitHub
+# release; the jobs below then build the distributions — the sdist and one
+# abi3 wheel (CPython 3.14 and later) per platform the package supports: Linux
+# (manylinux, x86_64 and aarch64) and macOS (x86_64 and arm64) —, publish them
+# to PyPI, and attach them to the GitHub release with their build provenance.
+# A push without a releasable commit changes nothing.
+#
+# PyPI trusts the `publish` job of this workflow in the `pypi` environment
+# (trusted publishing): the action trades its OIDC identity for a short-lived
+# token, so no PyPI token is stored, and PyPI records an attestation of every
+# file. A new project is declared once on PyPI as a pending publisher.
+#
+# `RELEASE_PLEASE_TOKEN` is a fine-grained personal token with contents and
+# pull-requests write access: events raised with the automatic `GITHUB_TOKEN`
+# trigger no other workflow, so a release PR opened with it would never receive
+# the `CI OK` check that the protected `main` branch requires. The token is a
+# secret of the `release` environment, which only `main` may deploy to: a
+# workflow pushed on another branch cannot read it.
+#
+# Run by hand (`workflow_dispatch`), the workflow builds and checks the
+# distributions of the current commit without releasing anything. Every action
+# is pinned to the commit of a release, as in ci.yml.
+# ------------------------------------------------------------------------------
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_COLOR: 1
+
+jobs:
+  # Opens or updates the release PR; when a release PR has just been merged,
+  # tags the version and creates its GitHub release instead. Forks have no
+  # release token: they skip it. Never canceled mid-run, so that a
+  # half-written PR or release is not left behind.
+  release-please:
+    name: Release PR
+    if: github.event_name == 'push' && github.event.repository.fork == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: write
+      pull-requests: write
+      # The labels release-please puts on its PRs (`autorelease: pending`).
+      issues: write
+    concurrency:
+      group: release-please-${{ github.ref }}
+      cancel-in-progress: false
+    outputs:
+      release-created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+  # One abi3 wheel per platform, built as `maturin build --release` builds it:
+  # in a manylinux container on Linux, natively on macOS, both architectures
+  # from the same Apple silicon runner. A wheel the runner can load is
+  # installed into a clean environment and imported.
+  wheels:
+    name: Wheel (${{ matrix.platform.name }})
+    needs: release-please
+    if: >-
+      !cancelled() && (github.event_name == 'workflow_dispatch'
+      || needs.release-please.outputs.release-created == 'true')
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { name: linux-x86_64, runner: ubuntu-latest, target: x86_64, native: true }
+          - { name: linux-aarch64, runner: ubuntu-24.04-arm, target: aarch64, native: true }
+          - { name: macos-x86_64, runner: macos-latest, target: x86_64-apple-darwin, native: false }
+          - { name: macos-arm64, runner: macos-latest, target: aarch64-apple-darwin, native: true }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          command: build
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist
+          manylinux: auto
+          sccache: true
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        if: matrix.platform.native
+        with:
+          python-version: "3.14"
+      - name: Install the wheel and import it
+        if: matrix.platform.native
+        run: |
+          version=$(awk -F'"' '/^version/ {print $2; exit}' pyproject.toml)
+          uv venv "$RUNNER_TEMP/venv"
+          uv pip install --python "$RUNNER_TEMP/venv/bin/python" dist/*.whl
+          # Outside the checkout, so that the sources do not shadow the wheel.
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/venv/bin/python" -c '
+          import sys, fastsandbox
+          assert fastsandbox.__version__ == sys.argv[1], (fastsandbox.__version__, sys.argv[1])
+          print("fastsandbox", fastsandbox.__version__, "from", fastsandbox.__file__)
+          ' "$version"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-wheel-${{ matrix.platform.name }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  # The source distribution: the package, the extension crate and the root
+  # Cargo workspace, from which pip builds a wheel on any other platform.
+  sdist:
+    name: Sdist
+    needs: release-please
+    if: >-
+      !cancelled() && (github.event_name == 'workflow_dispatch'
+      || needs.release-please.outputs.release-created == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  # Publishes the distributions to PyPI through trusted publishing, with the
+  # attestations PyPI shows for each file. Only for a release just created.
+  publish:
+    name: Publish to PyPI
+    needs: [release-please, wheels, sdist]
+    if: needs.release-please.outputs.release-created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/p/fastsandbox
+    permissions:
+      # The OIDC identity PyPI trusts to publish the project.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+
+  # Attaches the distributions to the GitHub release release-please created,
+  # with a build provenance attestation (`gh attestation verify`).
+  github-release:
+    name: GitHub release assets
+    needs: [release-please, wheels, sdist, publish]
+    if: needs.release-please.outputs.release-created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ needs.release-please.outputs.tag }}
+        run: gh release upload "$TAG" dist/* --repo "$REPOSITORY"

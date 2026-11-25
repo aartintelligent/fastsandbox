@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Docker Sandboxes documentation
+    url: https://docs.docker.com/ai/sandboxes/
+    about: Questions about Docker Sandboxes (sbx) itself belong upstream.
+  - name: docker-sandbox, the Rust library
+    url: https://github.com/aartintelligent/docker-sandbox/issues
+    about: Missing daemon routes or fields, and bugs of the Rust client fastsandbox is built on.

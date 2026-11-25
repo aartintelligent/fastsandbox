@@ -1,0 +1,181 @@
+# ------------------------------------------------------------------------------
+# pyproject — the `fastsandbox` Python package and its development toolchain.
+#
+# maturin builds the native extension of `fastsandbox-native/` into
+# `fastsandbox._native` and ships it with the package `fastsandbox/`. `uv` keeps
+# the environment local to the repository: `uv sync` builds and installs the
+# package in editable mode, with the tools of the `dev` group and the
+# dependencies of the examples, and a change to a file listed in `[tool.uv]
+# cache-keys` rebuilds the extension on the next `uv run`.
+# ------------------------------------------------------------------------------
+
+[build-system]
+build-backend = "maturin"
+requires      = ["maturin>=1.16,<2.0"]
+
+[project]
+name = "fastsandbox"
+version = "0.1.0"
+description = "Docker Sandboxes for Python: a typed async client and a declarative framework for tasks and AI agents in sandboxes"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-APACHE", "LICENSE-MIT"]
+authors = [{ name = "Aurelien Andre", email = "aurelien.andre@aartintelligent.fr" }]
+requires-python = ">=3.14"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Typing :: Typed",
+]
+keywords = ["agents", "ai", "docker", "sandbox", "sbx"]
+# The models of the API and the validation of the task inputs and outputs.
+dependencies = ["pydantic>=2.14,<3"]
+
+[project.scripts]
+fastsandbox = "fastsandbox.cli:main"
+
+[project.urls]
+Documentation = "https://aartintelligent.github.io/fastsandbox/"
+Repository    = "https://github.com/aartintelligent/fastsandbox"
+
+[dependency-groups]
+dev = [
+    "maturin>=1.16,<2.0",
+    "mypy>=2.4",
+    # The audit of the locked Python dependencies (`just deny`, CI).
+    "pip-audit>=2.10,<3",
+    "pytest-asyncio>=1.5,<2",
+    # The coverage of the package (`just coverage`, CI and Codecov).
+    "pytest-cov>=7",
+    "pytest>=9.2,<10",
+    "ruff>=0.17",
+]
+# The examples of `examples/`, never installed with the package: the official
+# MCP SDK serves the MCP tools of the MCP examples and of the `agent-*-mcp`
+# examples on the host.
+examples = ["mcp>=2.3,<3"]
+# The documentation site of `docs/` (`just docs`, `just docs-build`): Zensical
+# builds it, and the Python handler of mkdocstrings renders the API reference
+# from the docstrings and the stubs of the extension. mkdocstrings needs the
+# `mkdocs` package as a library; Zensical never runs MkDocs.
+docs = ["mkdocstrings-python>=2.0.11,<3", "zensical>=0.1.3,<0.2"]
+
+# ------------------------------------------------------------------------------
+# Build — maturin and uv.
+# ------------------------------------------------------------------------------
+
+[tool.maturin]
+bindings = "pyo3"
+# The extension crate; the Python package is `fastsandbox/`, at the root, where
+# maturin looks for a package named after the module.
+manifest-path = "fastsandbox-native/Cargo.toml"
+module-name   = "fastsandbox._native"
+# Editable installs (`uv sync`) build in debug mode: fast to compile, and the
+# release profile stays for the wheels.
+editable-profile = "dev"
+
+[tool.uv]
+# `uv sync` and `uv run` install every group: the examples are linted and
+# type-checked with the package, and the documentation builds with it.
+default-groups = ["dev", "docs", "examples"]
+# What rebuilds the extension on the next `uv run`.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "Cargo.lock" },
+    { file = "fastsandbox-native/Cargo.toml" },
+    { file = "fastsandbox-native/src/**/*.rs" },
+]
+
+# ------------------------------------------------------------------------------
+# Quality gates — ruff, mypy, pytest and typos.
+# ------------------------------------------------------------------------------
+
+[tool.ruff]
+line-length    = 100
+target-version = "py314"
+# The examples import their shared plumbing as `common`, from `examples/`.
+src = [".", "examples"]
+
+[tool.ruff.lint]
+# Pyflakes, pycodestyle, isort, pyupgrade, bugbear, simplify, the pydocstyle
+# rules of the Google convention, and the async and typing checks.
+select = ["ASYNC", "B", "C4", "D", "E", "F", "I", "PT", "RUF", "SIM", "TC", "UP", "W"]
+# `D105`/`D107`: magic methods and `__init__` are documented by their class.
+# `ASYNC109`: the `timeout` parameters are deadlines the library and the daemon
+# enforce (an execution, a session exit, an agent run), not cancellation scopes
+# a caller could replace with `asyncio.timeout`.
+ignore = ["ASYNC109", "D105", "D107"]
+
+[tool.ruff.lint.flake8-type-checking]
+# Pydantic evaluates the annotations of its models at run time: the types they
+# name stay real imports.
+runtime-evaluated-base-classes = ["fastsandbox.models._base.Model", "pydantic.BaseModel"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fastsandbox"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Tests and documentation examples document themselves through their names.
+# `TC`: the annotations of their tasks are evaluated at run time by FastSandbox,
+# so the types they name must be imported for real.
+"docs_src/**" = ["D", "TC"]
+"tests/**"    = ["D", "TC"]
+# The project templates of the Claude Code plugin are user projects, where
+# fastsandbox is a third-party package (`I`), and their tasks are evaluated at
+# run time (`TC`); their tests document themselves through their names (`D`).
+"plugins/fastsandbox/skills/new-project/templates/**"          = ["I", "TC"]
+"plugins/fastsandbox/skills/new-project/templates/**/tests/**" = ["D", "I", "TC"]
+# `RUF012`: Pydantic copies a mutable default (`[]`, `{}`) for each instance;
+# ruff cannot see that the models derive from `BaseModel` through `Model`.
+"fastsandbox/models/**" = ["RUF012"]
+
+[tool.mypy]
+# The project templates of the Claude Code plugin too, each its own top-level
+# package: their tests import the module of their project.
+files = [
+    "examples",
+    "fastsandbox",
+    "plugins/fastsandbox/skills/new-project/templates",
+]
+mypy_path = [
+    "plugins/fastsandbox/skills/new-project/templates/agent",
+    "plugins/fastsandbox/skills/new-project/templates/client",
+    "plugins/fastsandbox/skills/new-project/templates/tasks",
+]
+plugins = ["pydantic.mypy"]
+python_version = "3.14"
+strict = true
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+asyncio_mode                       = "auto"
+# Tests against the real daemon of the user run only when asked for; test
+# files of different directories may share a name.
+addopts   = "-m 'not live' --import-mode=importlib"
+markers   = ["live: needs the sandboxd daemon of the current user (`just test-live`)"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+# The package; its tests, examples and snippets are not measured.
+source = ["fastsandbox"]
+
+[tool.coverage.report]
+# The share of the lines of the package the tests must run, the gate of the
+# `coverage` CI job; codecov.yml holds the same bar. Raise both as the tests
+# grow, never lower them.
+fail_under   = 85
+show_missing = true
+skip_covered = true
+
+[tool.typos.files]
+# Generated files.
+extend-exclude = [".venv/", "Cargo.lock", "target/", "uv.lock"]

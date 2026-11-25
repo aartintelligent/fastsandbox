@@ -1,0 +1,229 @@
+# ------------------------------------------------------------------------------
+# Zensical — the documentation site of fastsandbox.
+#
+# The pages are the Markdown files of `docs/`; their code comes from the
+# snippets of `docs_src/`, included as they are tested by `tests/test_docs_src/`
+# (`--8<-- "docs_src/…"`), and the API reference is rendered from the
+# docstrings of the package and the stubs of the extension (`::: fastsandbox.X`).
+# `just docs` previews the site, `just docs-build` builds it in strict mode, as
+# the `Docs` job of the CI does; `.github/workflows/docs.yml` publishes it to
+# GitHub Pages. Reference: https://zensical.org/docs/setup/basics/
+# ------------------------------------------------------------------------------
+
+[project]
+site_name = "fastsandbox"
+site_url = "https://aartintelligent.github.io/fastsandbox/"
+site_description = "Docker Sandboxes for Python: a typed async client and a declarative framework for tasks and AI agents in sandboxes"
+repo_url = "https://github.com/aartintelligent/fastsandbox"
+repo_name = "aartintelligent/fastsandbox"
+edit_uri = "edit/main/docs/"
+copyright = """
+Copyright &copy; Aurelien Andre. MIT OR Apache-2.0. fastsandbox is an \
+independent project and is not affiliated with or endorsed by Docker, Inc."""
+docs_dir = "docs"
+site_dir = "site"
+# Snippets and docstrings live outside `docs/`: a change rebuilds the preview.
+watch = ["SECURITY.md", "docs_src", "fastsandbox"]
+# One tab per question a reader asks, one directory of `docs/` per section:
+# Overview (should I use it?), Documentation (how do I use it?), Reference
+# (what does this name do?), Project (who makes it, how do I take part?).
+# Every entry is named: a section is a label, never a page of its own.
+nav = [
+    { "Home" = "index.md" },
+    { "Overview" = [
+        { "Why" = "overview/why.md" },
+        { "Features" = "overview/features.md" },
+        { "Use cases" = "overview/use-cases.md" },
+        { "Design" = "overview/design.md" },
+        { "Compatibility" = "overview/compatibility.md" },
+    ] },
+    { "Documentation" = [
+        { "Get started" = [
+            { "Quickstart" = "get-started/quickstart.md" },
+            { "Installation" = "get-started/installation.md" },
+            { "With Claude Code" = "get-started/claude-code.md" },
+            { "First steps" = "get-started/first-steps.md" },
+        ] },
+        { "Agent sandboxes" = [
+            { "Give it a repository" = "agents/repository.md" },
+            { "Control its network" = "agents/network.md" },
+            { "Follow its work" = "agents/follow.md" },
+            { "Give it tools" = "agents/tools.md" },
+            { "Run several agents" = "agents/several.md" },
+        ] },
+        { "FastSandbox" = [
+            { "Introduction" = "framework/index.md" },
+            { "Tasks" = "framework/tasks.md" },
+            { "Inputs and outputs" = "framework/inputs-outputs.md" },
+            { "Agents" = "framework/agents.md" },
+            { "Host paths" = "framework/host-paths.md" },
+            { "Network rules" = "framework/network.md" },
+            { "Dependencies" = "framework/dependencies.md" },
+            { "Lifespan and state" = "framework/lifespan.md" },
+            { "Running tasks" = "framework/running.md" },
+            { "Command line" = "framework/cli.md" },
+        ] },
+        { "Client" = [
+            { "Introduction" = "client/index.md" },
+            { "Sandboxes" = "client/sandboxes.md" },
+            { "Commands" = "client/commands.md" },
+            { "Files" = "client/files.md" },
+            { "Interactive sessions" = "client/interactive.md" },
+            { "Network and policy" = "client/network.md" },
+            { "Ports" = "client/ports.md" },
+            { "Credentials" = "client/credentials.md" },
+            { "Images" = "client/images.md" },
+            { "Events and prompts" = "client/events.md" },
+            { "SSH" = "client/ssh.md" },
+            { "MCP gateway" = "client/mcp.md" },
+            { "The daemon" = "client/daemon.md" },
+            { "Kits" = "client/kits.md" },
+            { "Errors" = "client/errors.md" },
+        ] },
+        { "Guides" = [
+            { "Testing" = "guides/testing.md" },
+            { "Security" = "guides/security.md" },
+            { "Troubleshooting" = "guides/troubleshooting.md" },
+            { "Examples" = "guides/examples.md" },
+        ] },
+    ] },
+    { "Reference" = [
+        { "Introduction" = "reference/index.md" },
+        { "Client" = "reference/client.md" },
+        { "Sandboxes" = "reference/sandboxes.md" },
+        { "Sessions and streams" = "reference/sessions.md" },
+        { "Daemon services" = "reference/services.md" },
+        { "Kits" = "reference/kits.md" },
+        { "FastSandbox" = "reference/applications.md" },
+        { "Agents" = "reference/agents.md" },
+        { "Parameters" = "reference/params.md" },
+        { "Models" = "reference/models.md" },
+        { "Exceptions" = "reference/exceptions.md" },
+        { "Types" = "reference/types.md" },
+        { "Testing" = "reference/testing.md" },
+    ] },
+    { "Project" = [
+        { "About" = "project/about.md" },
+        { "Contributing" = "project/contributing.md" },
+        { "Security policy" = "project/security-policy.md" },
+        { "License" = "project/license.md" },
+    ] },
+]
+
+# Strict builds (`--strict`) fail on any of these. References to the API
+# (`[Sandbox][fastsandbox.Sandbox]`) are resolved by mkdocstrings, which fails a
+# strict build on its own when one does not resolve: Markdown references are
+# left to it.
+[project.validation]
+invalid_links         = true
+invalid_link_anchors  = true
+unresolved_references = false
+unresolved_footnotes  = true
+unused_definitions    = true
+unused_footnotes      = true
+
+[project.theme]
+# `overrides/home.html` is the template of the home page: its hero and the
+# animated sandbox of `docs/assets/javascripts/home.js`.
+custom_dir = "overrides"
+language   = "en"
+# No `navigation.indexes`: the first page of a section is an entry of its own
+# (`Introduction`), so that the sidebar lists every page by name.
+features = [
+    "content.action.edit",
+    "content.action.view",
+    "content.code.annotate",
+    "content.code.copy",
+    "content.code.select",
+    "content.tabs.link",
+    "content.tooltips",
+    "navigation.footer",
+    "navigation.instant",
+    "navigation.path",
+    "navigation.sections",
+    "navigation.tabs",
+    "navigation.tabs.sticky",
+    "navigation.top",
+    "navigation.tracking",
+    "search.highlight",
+    "search.suggest",
+    "toc.follow",
+]
+
+[project.theme.icon]
+logo = "lucide/box"
+repo = "fontawesome/brands/github"
+
+# A single dark palette, without a toggle: the site is always dark, as the
+# hero of the home page is.
+[project.theme.palette]
+scheme  = "slate"
+primary = "indigo"
+accent  = "indigo"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/aartintelligent/fastsandbox"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/python"
+link = "https://pypi.org/project/fastsandbox/"
+
+[project.markdown_extensions]
+abbr                                   = {}
+admonition                             = {}
+attr_list                              = {}
+def_list                               = {}
+footnotes                              = {}
+md_in_html                             = {}
+toc.permalink                          = true
+pymdownx.betterem                      = {}
+pymdownx.details                       = {}
+pymdownx.emoji.emoji_generator         = "zensical.extensions.emoji.to_svg"
+pymdownx.emoji.emoji_index             = "zensical.extensions.emoji.twemoji"
+pymdownx.highlight.anchor_linenums     = true
+pymdownx.highlight.line_spans          = "__span"
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.inlinehilite                  = {}
+pymdownx.keys                          = {}
+pymdownx.mark                          = {}
+pymdownx.smartsymbols                  = {}
+# `--8<-- "docs_src/tasks/run_tests.py"` includes a file of the repository,
+# from its root; a missing one fails the build.
+pymdownx.snippets.base_path = ["."]
+pymdownx.snippets.check_paths = true
+pymdownx.snippets.dedent_subsections = true
+pymdownx.superfences.custom_fences = [
+    { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+pymdownx.tabbed.alternate_style = true
+pymdownx.tabbed.combine_header_slug = true
+pymdownx.tasklist.custom_checkbox = true
+
+# The API reference: `::: fastsandbox.Sandbox` renders the object from its
+# docstring (Google style) and its annotations, the extension from
+# `fastsandbox/_native.pyi`; nothing is imported, so the extension need not be
+# built. The inventories link the types of Python and Pydantic.
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["."]
+inventories = [
+    "https://docs.python.org/3/objects.inv",
+    "https://docs.pydantic.dev/latest/objects.inv",
+]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style         = "google"
+docstring_section_style = "table"
+# Private names, and the configuration every Pydantic model shares, stay out.
+filters                    = ["!^_", "!^model_config$"]
+heading_level              = 2
+members_order              = "source"
+merge_init_into_class      = true
+separate_signature         = true
+show_root_heading          = true
+show_root_full_path        = true
+show_signature_annotations = true
+show_source                = false
+show_symbol_type_heading   = true
+show_symbol_type_toc       = true
+signature_crossrefs        = true
