@@ -45,8 +45,9 @@ random suffix: `builds-describe-sandbox-1a2b3c4d`.
 
 ## Timeouts
 
-`timeout` is a number of seconds, a `datetime.timedelta`, or a duration such as
-`"90s"`, `"10m"`, `"1h30m"` or `"500ms"`; an unreadable duration raises
+`timeout` is a number of seconds, a `datetime.timedelta`, or a duration in
+`ms`, `s`, `m`, `h` and `d`, such as `"90s"`, `"10m"`, `"1h30m"`, `"500ms"` or
+`"1d"`; an unreadable duration raises
 `ValueError` when the task is declared. It bounds the call of the function: the
 creation of the sandbox, its preparation and the dependencies come before the
 deadline starts. A run that goes over raises
