@@ -71,7 +71,8 @@ class AgentProfile:
 
     Attributes:
         name: Kit of the agent, as accepted by `sbx create`.
-        credentials: Credentials it can use; the first one found applies.
+        credentials: Credentials it can use; each one set in the environment is
+            pushed, from the first of its variables that is set.
         forwarded_env: Variables given as they are to the agent process when
             set, for an agent `sbx` knows no service secret for; their values
             are visible inside the sandbox.

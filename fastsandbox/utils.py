@@ -22,7 +22,8 @@ _UNITS = {"ms": 0.001, "s": 1, "m": 60, "h": 3600, "d": 86400}
 def parse_timeout(value: float | str | timedelta | None) -> float | None:
     """A timeout in seconds.
 
-    From seconds, a `timedelta`, or a duration such as `"90s"`, `"10m"`, `"1h30m"` or `"500ms"`.
+    From seconds, a `timedelta`, or a duration such as `"90s"`, `"10m"`, `"1h30m"`, `"500ms"`
+    or `"1d"`.
 
     Raises:
         ValueError: When the duration cannot be read.

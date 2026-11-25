@@ -102,9 +102,13 @@ prompt would run. Running the agent itself, with `prompt`, `stream` or
 ## Routes and limits
 
 The fake daemon serves what the client and the framework need for most tasks:
-the health of the daemon, the life cycle of sandboxes, sessions, commands,
-files, network rules, credentials, the ports of a sandbox and the loading of
-images. A route it does not serve answers `404`.
+the health of the daemon, the list and the life cycle of sandboxes, sessions,
+commands, files, network rules, credentials, the ports of a sandbox, and the
+list and the loading of images. A route it does not serve answers `404`: the
+event and prompt streams, the activity log of the policy, the MCP gateway and
+the settings of the daemon among them. `FakeDaemon(version=..., api_version=...)`
+sets the `sbx` version and the API version it reports, to test what a client
+does with a daemon it does not support.
 [`daemon.route(method, pattern)`][fastsandbox.testing.FakeDaemon.route] adds a
 route, or replaces a built-in one, with a handler that returns a
 [`Response`][fastsandbox.testing.Response]:
@@ -114,6 +118,11 @@ route, or replaces a built-in one, with a handler that returns a
 def ports(request: Request) -> Response:
     return Response(200, [{"host_port": 8080, "sandbox_port": 80, "protocol": "tcp"}])
 ```
+
+A `Response` carries a status and a JSON `body`, or instead `lines`, JSON values
+sent as an NDJSON stream, or `raw` bytes with their `content_type`, a tar
+archive for instance; `hold=True` keeps a streamed body open until the client
+leaves, as the daemon does for a session.
 
 Interactive sessions, agent runs and SSH tunnels upgrade the HTTP connection of
 the socket into a raw stream, which the fake daemon does not do: it answers

@@ -125,7 +125,9 @@ edit files and run commands without asking, which the sandbox makes safe.
 [`stream(prompt, *, working_dir)`][fastsandbox.AgentRunner.stream] runs the
 same command and yields what the agent writes on its standard output as it
 comes, a line at a time: parsed JSON values for the agents whose output is JSON
-lines, text lines otherwise.
+lines, text lines otherwise. Unlike `prompt`, it has no `timeout` of its own,
+since the timeout of the task bounds it, and no `env`: the agent process gets
+the variables its profile forwards, as with `prompt`.
 
 ```python title="docs_src/agents/review_stream.py" hl_lines="14-19"
 --8<-- "docs_src/agents/review_stream.py"
