@@ -101,6 +101,10 @@ line-length    = 100
 target-version = "py314"
 # The examples import their shared plumbing as `common`, from `examples/`.
 src = [".", "examples"]
+# The pages of the documentation site hold no Python of their own: their code
+# blocks include the snippets of `docs_src/` (`--8<-- "docs_src/..."`), which
+# ruff checks there, and would mangle the include lines it found in the pages.
+extend-exclude = ["docs/"]
 
 [tool.ruff.lint]
 # Pyflakes, pycodestyle, isort, pyupgrade, bugbear, simplify, the pydocstyle

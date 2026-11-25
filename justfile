@@ -22,18 +22,18 @@ ci: fmt-check lint typos types test coverage docs-build deny
 fmt:
     cargo fmt
     taplo fmt
-    uv run ruff format fastsandbox tests docs_src examples plugins
+    uv run ruff format
 
 # Check the formatting without changing anything.
 fmt-check:
     cargo fmt --check
     taplo fmt --check
-    uv run ruff format --check fastsandbox tests docs_src examples plugins
+    uv run ruff format --check
 
 # Lint the Rust (clippy, warnings as errors) and the Python (ruff).
 lint:
     cargo clippy --all-targets -- -D warnings
-    uv run ruff check fastsandbox tests docs_src examples plugins
+    uv run ruff check
 
 # Spell-check the repository (`[tool.typos]` in pyproject.toml).
 typos:
