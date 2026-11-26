@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/aartintelligent/fastsandbox/compare/v0.1.2...v0.1.3) (2026-11-26)
+
+
+### Added
+
+* support Python 3.12 and 3.13 ([#7](https://github.com/aartintelligent/fastsandbox/issues/7)) ([863b047](https://github.com/aartintelligent/fastsandbox/commit/863b04744de70978cc147ffc4f4e24dcfaa41db4))
+
 ## [0.1.2](https://github.com/aartintelligent/fastsandbox/compare/v0.1.1...v0.1.2) (2026-11-26)
 
 
