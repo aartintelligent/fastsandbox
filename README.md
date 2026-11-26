@@ -19,7 +19,8 @@ out. It gets back a typed result, and the sandbox is gone.
 [Documentation](https://aartintelligent.github.io/fastsandbox/) ·
 [Quickstart](https://aartintelligent.github.io/fastsandbox/get-started/quickstart/) ·
 [API reference](https://aartintelligent.github.io/fastsandbox/reference/) ·
-[Examples](https://aartintelligent.github.io/fastsandbox/guides/examples/)
+[Examples](https://aartintelligent.github.io/fastsandbox/guides/examples/) ·
+[docker-sandbox, the Rust crate underneath](https://github.com/aartintelligent/docker-sandbox)
 
 fastsandbox is an independent, community-maintained project. It is not
 affiliated with, sponsored or endorsed by Docker, Inc., and uses the Docker
@@ -44,11 +45,15 @@ rather than the repository itself, and reach only the hosts you allowed.
 ## The goal of this stack
 
 Without a library, a Python program that wants a sandbox runs the CLI and
-parses what it prints. fastsandbox talks to the socket of the daemon instead,
-through [`docker-sandbox`](https://crates.io/crates/docker-sandbox), the Rust
-client of that socket. It gives Python two layers: a typed async client that
-reaches every route of the daemon, and **FastSandbox**, where the work done in
-a sandbox is a typed function under a decorator.
+parses what it prints. fastsandbox talks to the socket of the daemon instead.
+
+It is built on [`docker-sandbox`](https://github.com/aartintelligent/docker-sandbox),
+a Rust crate by the same author that does all the work with the daemon. The
+crate is the client of the socket: it maps the API of the daemon version by
+version, and checks the version of the daemon when it connects. fastsandbox
+brings it to Python through a native extension, and adds two layers: a typed
+async client that reaches every route of the daemon, and **FastSandbox**,
+where the work done in a sandbox is a typed function under a decorator.
 
 What that buys you, in practice:
 
@@ -209,9 +214,11 @@ checks:
 The socket API it relies on is private, though: read the status above before
 building a product on it.
 
-**How is it organised?** A Python package over `docker-sandbox`, the Rust
+**How is it organised?** A Python package over
+[`docker-sandbox`](https://github.com/aartintelligent/docker-sandbox), the Rust
 client of the socket, joined by a thin native extension. Everything about the
-daemon is in the Rust library; every helper and every default is Python. The
+daemon is in the crate: a new route or field of the daemon goes into it
+first, then into fastsandbox. Every helper and every default is Python. The
 [design page](https://aartintelligent.github.io/fastsandbox/overview/design/)
 records the layers and the decisions behind them.
 
