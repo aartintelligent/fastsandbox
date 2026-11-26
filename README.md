@@ -11,7 +11,7 @@ out. It gets back a typed result, and the sandbox is gone.
 [![Coverage](https://codecov.io/gh/aartintelligent/fastsandbox/graph/badge.svg)](https://codecov.io/gh/aartintelligent/fastsandbox)
 [![PyPI](https://img.shields.io/pypi/v/fastsandbox.svg)](https://pypi.org/project/fastsandbox/)
 [![Python](https://img.shields.io/python/required-version-toml?tomlFilePath=https://raw.githubusercontent.com/aartintelligent/fastsandbox/main/pyproject.toml)](https://aartintelligent.github.io/fastsandbox/get-started/installation/)
-[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://aartintelligent.github.io/fastsandbox/project/license/)
 [![Downloads](https://static.pepy.tech/badge/fastsandbox/month)](https://pepy.tech/projects/fastsandbox)
 [![Requires Docker Sandboxes](https://img.shields.io/badge/requires-Docker%20Sandboxes-2496ED?logo=docker&logoColor=white)](https://aartintelligent.github.io/fastsandbox/get-started/installation/)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757?logo=claude&logoColor=white)](https://aartintelligent.github.io/fastsandbox/get-started/claude-code/)
