@@ -20,7 +20,8 @@ flowchart LR
 - **The `sbx` CLI on `PATH`**, installed with Docker Sandboxes: fastsandbox
   uses it to compile a [kit](../client/kits.md) on its first use; later
   sandboxes of the same kit are created through the socket alone.
-- **Python 3.14** or newer; `uv python install 3.14` installs it.
+- **Python 3.12** or newer (3.12, 3.13 and 3.14 are tested);
+  `uv python install 3.14` installs one.
 - To build from source: a **Rust toolchain** (1.88 or newer) and
   [uv](https://docs.astral.sh/uv/).
 
@@ -63,7 +64,7 @@ under `~/.local/state`: that is where fastsandbox looks for it (see
     pip install fastsandbox
     ```
 
-The wheels are built for CPython 3.14 and later (abi3), on Linux (x86_64 and
+The wheels are built for CPython 3.12 and later (abi3), on Linux (x86_64 and
 aarch64) and macOS (x86_64 and arm64); they hold the native extension, so
 nothing is compiled on installation.
 

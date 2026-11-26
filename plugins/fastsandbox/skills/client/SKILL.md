@@ -10,7 +10,7 @@ reached through its Unix socket. Docker Sandboxes must be installed and its
 daemon running for the current user (`sbx version` answers); without it,
 `connect()` raises `DaemonUnavailableError`. Every payload is a Pydantic model
 of `fastsandbox.models`, every error a class of `fastsandbox.exceptions`.
-Requires Python 3.14 or newer.
+Requires Python 3.12 or newer.
 
 ```python
 import fastsandbox

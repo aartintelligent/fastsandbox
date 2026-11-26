@@ -49,11 +49,12 @@ repository.
 ## Commands
 
 ```bash
-just ci          # fmt-check lint typos types test coverage docs-build deny
-just test        # pytest, no daemon needed
-just test-live   # against the daemon of the current user
-just docs        # preview the documentation site (just docs-build: strict build)
-uv sync          # rebuild the extension after a Rust change (uv run does it too)
+just ci               # fmt-check lint typos types test coverage docs-build deny
+just test             # pytest, no daemon needed
+just test-python 3.12 # pytest on another supported Python (3.12 to 3.14)
+just test-live        # against the daemon of the current user
+just docs             # preview the documentation site (just docs-build: strict build)
+uv sync               # rebuild the extension after a Rust change (uv run does it too)
 ```
 
 ## CI and releases
@@ -112,7 +113,10 @@ uv sync          # rebuild the extension after a Rust change (uv run does it too
 - Python: one module per concept, named by what it holds; Google-style docstrings with a one-line
   summary; every public item documented and typed (`mypy --strict`); `from __future__ import
   annotations`; ruff formatting at 100 columns. Helpers shared by modules live in `utils.py`,
-  without a leading underscore; private ones stay in their module with one.
+  without a leading underscore; private ones stay in their module with one. The package supports
+  Python 3.12 and later: no syntax or standard library API newer than 3.12, which ruff
+  (`target-version`) and mypy (`python_version`) reject; a difference between versions that must
+  be handled lives in one place, not in `sys.version_info` branches across the modules.
 - TOML, YAML, justfile: an 80-column banner block at the top, comments on their own line, `=`
   aligned (`taplo fmt`).
 - Nothing committed holds personal data (home directory, user or host name, e-mail) beyond the

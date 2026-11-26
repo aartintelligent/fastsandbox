@@ -28,7 +28,7 @@ machine, its daemon running (see [Installation](installation.md#install-docker-s
 | Part | Name | What it does |
 |---|---|---|
 | Skills | `fastsandbox`, `client`, `tasks`, `agents`, `testing`, `troubleshooting` | The library, domain by domain: its API with exact signatures, its rules and its pitfalls, with a short example each. Claude loads the one the work calls for. |
-| Command | `/fastsandbox:new-project` | Scaffolds a project, an application of coding agents, an application of tasks or a tool built on the client, with a pyproject in Python 3.14, the code, tests that run without a daemon, and a README. |
+| Command | `/fastsandbox:new-project` | Scaffolds a project, an application of coding agents, an application of tasks or a tool built on the client, with a pyproject for Python 3.12 or newer, the code, tests that run without a daemon, and a README. |
 | Command | `/fastsandbox:add-task` | Adds a task or an agent task, and its test, to an existing application. |
 | Command | `/fastsandbox:doctor` | Checks the machine, read-only: Docker Sandboxes, Python, the package, the API version of the daemon, the kits, the agent keys. |
 | Agent | `fastsandbox:sandbox-reviewer` | Reviews code that uses fastsandbox for the mistakes that cost safety or correctness: host files exposed, open network, secrets, sandboxes that stop or leak, unchecked agent results, missing timeouts. |

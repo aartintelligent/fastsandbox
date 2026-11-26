@@ -98,7 +98,7 @@ What that buys you, in practice:
 
 Install [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) first, its
 daemon running for your user: fastsandbox connects to its socket and does
-nothing without it. Then, with Python 3.14 or newer:
+nothing without it. Then, with Python 3.12 or newer:
 
 ```sh
 uv add fastsandbox      # or: pip install fastsandbox

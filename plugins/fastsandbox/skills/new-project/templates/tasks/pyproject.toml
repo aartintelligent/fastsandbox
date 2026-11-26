@@ -11,7 +11,7 @@
 name            = "my-checks"
 version         = "0.1.0"
 description     = "The checks of a project, run in throw-away sandboxes"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies    = ["fastsandbox>=0.1"]
 
 [dependency-groups]

@@ -208,7 +208,7 @@ class FakeDaemon:
                 await self._send(writer, request, response)
                 if response.hold:
                     break
-        except ConnectionError, asyncio.IncompleteReadError:
+        except (ConnectionError, asyncio.IncompleteReadError):
             pass
         finally:
             writer.close()

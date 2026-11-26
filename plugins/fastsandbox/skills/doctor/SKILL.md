@@ -1,6 +1,6 @@
 ---
 name: doctor
-description: Checks, read-only, that this machine is ready for fastsandbox - Docker Sandboxes installed and its daemon answering, Python 3.14, the package, the API version of the daemon, the kit cache, the agent keys present - and says how to fix what is missing. Use before a first project, or when a fastsandbox program fails to connect.
+description: Checks, read-only, that this machine is ready for fastsandbox - Docker Sandboxes installed and its daemon answering, Python 3.12 or newer, the package, the API version of the daemon, the kit cache, the agent keys present - and says how to fix what is missing. Use before a first project, or when a fastsandbox program fails to connect.
 disable-model-invocation: true
 ---
 
@@ -24,10 +24,10 @@ If it fails, the daemon is not running for this user.
 ## 2. Python
 
 ```sh
-uv python find 3.14 || python3 --version
+uv python find '>=3.12' || python3 --version
 ```
 
-fastsandbox needs Python 3.14 or newer; `uv python install 3.14` installs it.
+fastsandbox needs Python 3.12 or newer; `uv python install 3.14` installs one.
 
 ## 3. The package and the daemon
 

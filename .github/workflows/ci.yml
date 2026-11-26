@@ -11,10 +11,11 @@
 # job counts as a success.
 #
 # The `justfile` mirrors these jobs for local runs (`just ci`). Tests run on
-# Linux with the oldest and the newest supported Python, and also on macOS when
-# the package or the extension changes: the daemon is reached through a Unix
-# socket. The live tests and the examples need a real `sbx` daemon and never
-# run here, and no job reads a secret: Codecov authenticates through OIDC.
+# Linux with every supported Python (3.12 to 3.14), and also on macOS, with the
+# oldest and the newest, when the package or the extension changes: the daemon
+# is reached through a Unix socket. The live tests and the examples need a real
+# `sbx` daemon and never run here, and no job reads a secret: Codecov
+# authenticates through OIDC.
 #
 # Every action is pinned to the commit of a release, its tag in a comment:
 # a moved tag cannot change what runs, and Dependabot bumps both together.
@@ -106,14 +107,17 @@ jobs:
           # it renders.
           area docs "$shared|^fastsandbox/|^(docs|docs_src|overrides)/|^(zensical\.toml|SECURITY\.md)$"
           area dependencies '^(Cargo\.(toml|lock)|pyproject\.toml|uv\.lock|deny\.toml)$|^fastsandbox-native/Cargo\.toml$|^\.github/workflows/ci\.yml$'
+          # The tests run on Linux with every Python the package supports.
           # macOS runners are the slowest and the dearest: the tests run there
           # when the package or the extension changes, the only code that
-          # depends on the platform. Both run the oldest Python the package
-          # supports, the one its abi3 wheel targets.
+          # depends on the platform, with the oldest Python the package
+          # supports, the one its abi3 wheel targets, and the newest.
+          linux='{"os": "ubuntu-latest", "python": "3.12"}, {"os": "ubuntu-latest", "python": "3.13"}, {"os": "ubuntu-latest", "python": "3.14"}'
+          macos='{"os": "macos-latest", "python": "3.12"}, {"os": "macos-latest", "python": "3.14"}'
           if changed "$library"; then
-            echo 'test-matrix={"include": [{"os": "ubuntu-latest", "python": "3.14"}, {"os": "macos-latest", "python": "3.14"}]}'
+            echo "test-matrix={\"include\": [$linux, $macos]}"
           else
-            echo 'test-matrix={"include": [{"os": "ubuntu-latest", "python": "3.14"}]}'
+            echo "test-matrix={\"include\": [$linux]}"
           fi >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
 
@@ -162,7 +166,9 @@ jobs:
   # Guards the lint and typing policy of the Python code: ruff, and mypy in
   # strict mode on the package and the examples. mypy reads the stubs of the
   # extension (`_native.pyi`), so nothing is compiled: the dependencies of the
-  # package and of the examples are installed, the package itself is not.
+  # package and of the examples are installed, the package itself is not. The
+  # tools run on the newest Python and check the code against the oldest one
+  # the package supports (`target-version`, `python_version`).
   python-lint:
     name: Ruff & mypy
     needs: changes
@@ -192,13 +198,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.changes.outputs.test-matrix) }}
+    env:
+      # The Python of the matrix, over the development one of `.python-version`.
+      UV_PYTHON: ${{ matrix.python }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: rustup toolchain install
+      # One cache per Python: the extension is built against the interpreter of
+      # the job, whose configuration PyO3 records in the build.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
+          key: python-${{ matrix.python }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
@@ -290,8 +302,10 @@ jobs:
       - run: cargo check --locked --workspace --all-targets
 
   # Guards the distributions: the sdist and a release wheel build as the
-  # release workflow builds them, the wheel installs into a clean environment
-  # and imports, and its version is that of pyproject.toml.
+  # release workflow builds them, and the one abi3 wheel installs into a clean
+  # environment of every supported Python, where it imports, its version is
+  # that of pyproject.toml, a call through the extension reaches the fake
+  # daemon, and the command line answers.
   package:
     name: Package
     needs: changes
@@ -313,21 +327,27 @@ jobs:
           manylinux: auto
           sccache: true
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
-        with:
-          python-version: "3.14"
-      - name: Install the wheel and import it
+      - name: Install the wheel and import it, on every supported Python
         run: |
           version=$(awk -F'"' '/^version/ {print $2; exit}' pyproject.toml)
-          uv venv "$RUNNER_TEMP/venv"
-          uv pip install --python "$RUNNER_TEMP/venv/bin/python" dist/*.whl
-          # Outside the checkout, so that the sources do not shadow the wheel.
-          cd "$RUNNER_TEMP"
-          "$RUNNER_TEMP/venv/bin/python" -c '
-          import sys, fastsandbox
+          for python in 3.12 3.13 3.14; do
+            venv="$RUNNER_TEMP/venv-$python"
+            uv venv --python "$python" "$venv"
+            uv pip install --python "$venv/bin/python" dist/*.whl
+            # Outside the checkout, so that the sources do not shadow the wheel.
+            (cd "$RUNNER_TEMP" && "$venv/bin/python" -c '
+          import asyncio, sys, fastsandbox
+          from fastsandbox.testing import FakeDaemon
           assert fastsandbox.__version__ == sys.argv[1], (fastsandbox.__version__, sys.argv[1])
-          print("fastsandbox", fastsandbox.__version__, "from", fastsandbox.__file__)
-          ' "$version"
-          "$RUNNER_TEMP/venv/bin/fastsandbox" --help > /dev/null
+          async def main():
+              async with FakeDaemon() as daemon:
+                  client = await fastsandbox.connect(daemon.socket_path)
+                  print("fastsandbox", fastsandbox.__version__, "on Python", sys.version.split()[0],
+                        "from", fastsandbox.__file__, "daemon", client.health.status)
+          asyncio.run(main())
+          ' "$version")
+            "$venv/bin/fastsandbox" --help > /dev/null
+          done
 
   # Guards the supply chain when a manifest, a lockfile or the policy changes:
   # the Rust dependencies against deny.toml (advisories, licences, bans,

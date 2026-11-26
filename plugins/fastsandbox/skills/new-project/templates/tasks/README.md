@@ -7,7 +7,7 @@ The checks of a project, run on a copy of it in throw-away sandboxes of
 ## Requirements
 
 - Docker Sandboxes, installed and running for your user: `sbx version` answers.
-- Python 3.14 and [uv](https://docs.astral.sh/uv/).
+- Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).
 
 ## Run
 
