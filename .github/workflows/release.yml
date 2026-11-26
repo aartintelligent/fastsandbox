@@ -8,7 +8,7 @@
 # Cargo.toml and both lockfiles, and the changelog. CI checks that PR like any
 # other. Merging it makes release-please tag the version and create its GitHub
 # release; the jobs below then build the distributions — the sdist and one
-# abi3 wheel (CPython 3.14 and later) per platform the package supports: Linux
+# abi3 wheel (CPython 3.12 and later) per platform the package supports: Linux
 # (manylinux, x86_64 and aarch64) and macOS (x86_64 and arm64) —, publish them
 # to PyPI, and attach them to the GitHub release with their build provenance.
 # A push without a releasable commit changes nothing.
@@ -75,7 +75,7 @@ jobs:
   # One abi3 wheel per platform, built as `maturin build --release` builds it:
   # in a manylinux container on Linux, natively on macOS, both architectures
   # from the same Apple silicon runner. A wheel the runner can load is
-  # installed into a clean environment and imported.
+  # installed into a clean environment of every supported Python and imported.
   wheels:
     name: Wheel (${{ matrix.platform.name }})
     needs: release-please
@@ -105,21 +105,22 @@ jobs:
           sccache: true
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         if: matrix.platform.native
-        with:
-          python-version: "3.14"
-      - name: Install the wheel and import it
+      - name: Install the wheel and import it, on every supported Python
         if: matrix.platform.native
         run: |
           version=$(awk -F'"' '/^version/ {print $2; exit}' pyproject.toml)
-          uv venv "$RUNNER_TEMP/venv"
-          uv pip install --python "$RUNNER_TEMP/venv/bin/python" dist/*.whl
-          # Outside the checkout, so that the sources do not shadow the wheel.
-          cd "$RUNNER_TEMP"
-          "$RUNNER_TEMP/venv/bin/python" -c '
-          import sys, fastsandbox
+          for python in 3.12 3.13 3.14; do
+            venv="$RUNNER_TEMP/venv-$python"
+            uv venv --python "$python" "$venv"
+            uv pip install --python "$venv/bin/python" dist/*.whl
+            # Outside the checkout, so that the sources do not shadow the wheel.
+            (cd "$RUNNER_TEMP" && "$venv/bin/python" -c '
+          import sys, fastsandbox, fastsandbox._native
           assert fastsandbox.__version__ == sys.argv[1], (fastsandbox.__version__, sys.argv[1])
-          print("fastsandbox", fastsandbox.__version__, "from", fastsandbox.__file__)
-          ' "$version"
+          print("fastsandbox", fastsandbox.__version__, "on Python", sys.version.split()[0],
+                "from", fastsandbox.__file__)
+          ' "$version")
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist-wheel-${{ matrix.platform.name }}

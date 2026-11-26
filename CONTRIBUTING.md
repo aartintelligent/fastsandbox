@@ -11,7 +11,10 @@ reasons); this file holds the workflow.
   `rustfmt`). The extension also builds on its minimum version, the
   `rust-version` of `Cargo.toml` (1.88), which CI checks.
 - [uv](https://docs.astral.sh/uv/), which builds the extension and keeps the
-  Python environment of the repository.
+  Python environment of the repository, on Python 3.14 (`.python-version`;
+  uv installs it when it is missing). The package itself supports Python 3.12
+  and later: ruff and mypy check the code against 3.12 (`target-version`,
+  `python_version`), and the tests run on every supported version.
 - `just` (task runner), `taplo` (TOML formatting), `typos` (spelling) and
   `cargo-deny` (supply-chain audit).
 - For the live tests and the examples only: Docker Sandboxes installed and its
@@ -22,13 +25,14 @@ reasons); this file holds the workflow.
 ## Getting started
 
 ```bash
-uv sync              # builds the extension, installs the package in editable mode
-just test            # the tests, against the fake daemon: no daemon needed
-just docs            # the documentation site on http://localhost:8000, rebuilt as you write
-just ci              # every gate, before a push
-just test-live       # the tests against the daemon of your user (creates sandboxes)
-just example NAME    # one example of examples/ (creates sandboxes)
-just plugin-validate # the Claude Code plugin, with the `claude` CLI
+uv sync               # builds the extension, installs the package in editable mode
+just test             # the tests, against the fake daemon: no daemon needed
+just test-python 3.12 # the same tests on another supported Python
+just docs             # the documentation site on http://localhost:8000, rebuilt as you write
+just ci               # every gate, before a push
+just test-live        # the tests against the daemon of your user (creates sandboxes)
+just example NAME     # one example of examples/ (creates sandboxes)
+just plugin-validate  # the Claude Code plugin, with the `claude` CLI
 ```
 
 A change to a Rust file rebuilds the extension on the next `uv run`
@@ -97,10 +101,11 @@ change touches the calls to the daemon.
 CI (`.github/workflows/ci.yml`) runs the same gates on every pull request, in
 the merge queue and on `main`, without any secret; a pull request runs only the
 jobs its changes concern, and `CI OK` is the one required status. On top of
-`just ci`, it tests on Python 3.14 (and on macOS when the package or
-the extension changes), builds the extension on its minimum Rust version,
-builds and installs the wheel, and checks that every commit of the pull request
-is a Conventional Commit. The live tests and the examples need a real daemon
+`just ci`, it tests on Python 3.12, 3.13 and 3.14 on Linux (and on 3.12 and
+3.14 on macOS when the package or the extension changes), builds the extension
+on its minimum Rust version, builds the wheel and installs it on every
+supported Python, and checks that every commit of the pull request is a
+Conventional Commit. The live tests and the examples need a real daemon
 and stay local.
 
 ## Testing

@@ -24,11 +24,12 @@ range.
 
 | | |
 |---|---|
-| Python | 3.14 or newer |
-| Wheels | CPython 3.14 and later (abi3), Linux x86_64 and aarch64, macOS x86_64 and arm64 |
+| Python | 3.12 or newer: CPython 3.12, 3.13 and 3.14 |
+| Wheels | CPython 3.12 and later (abi3), Linux x86_64 and aarch64, macOS x86_64 and arm64 |
 | Dependencies | Pydantic 2 |
-| Typing | Typed (`py.typed`), checked with mypy in strict mode |
-| Tested | Python 3.14 on Linux on every change, and on macOS when the package or the extension changes |
+| Typing | Typed (`py.typed`), checked with mypy in strict mode against Python 3.12 |
+| Tested | Python 3.12, 3.13 and 3.14 on Linux on every change, and 3.12 and 3.14 on macOS when the package or the extension changes; the wheel is installed and imported on each version |
+| Not supported | The free-threaded builds of CPython (`3.13t`, `3.14t`): abi3 wheels do not install on them |
 
 The wheels hold the native extension, so nothing is compiled on installation.
 Building from source needs a Rust toolchain (1.88 or newer) and

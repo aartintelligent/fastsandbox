@@ -1,6 +1,6 @@
 ---
 name: new-project
-description: Scaffolds a new Python project that uses fastsandbox - an application of coding agents, an application of tasks run in throw-away sandboxes, or a tool built on the client - with a pyproject in Python 3.14, the code, tests that run without a daemon, and a README. Use when the user wants to start a project with fastsandbox.
+description: Scaffolds a new Python project that uses fastsandbox - an application of coding agents, an application of tasks run in throw-away sandboxes, or a tool built on the client - with a pyproject for Python 3.12 or newer, the code, tests that run without a daemon, and a README. Use when the user wants to start a project with fastsandbox.
 argument-hint: "[directory] [agent | tasks | client]"
 disable-model-invocation: true
 ---

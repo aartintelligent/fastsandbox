@@ -10,7 +10,7 @@
 name            = "my-probe"
 version         = "0.1.0"
 description     = "What a throw-away sandbox of Docker Sandboxes runs"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies    = ["fastsandbox>=0.1"]
 
 [dependency-groups]

@@ -5,7 +5,7 @@ description: Start here for anything about fastsandbox, the Python package of Do
 
 # fastsandbox
 
-fastsandbox is a Python package (3.14 or newer) for
+fastsandbox is a Python package (3.12 or newer) for
 [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/): a typed async
 client of the socket of `sandboxd`, the daemon of Docker Sandboxes, and
 FastSandbox, a declarative framework for tasks and coding agents that run in
@@ -32,8 +32,8 @@ client `Sandbox`, so the `client` skill applies inside tasks too.
 
 ## Essentials
 
-- **Install order**: Docker Sandboxes, then `uv add fastsandbox` (Python 3.14;
-  `uv python install 3.14` gets it), then `fastsandbox info` to check the
+- **Install order**: Docker Sandboxes, then `uv add fastsandbox` (Python 3.12 or
+  newer; `uv python install 3.14` gets one), then `fastsandbox info` to check the
   connection. `fastsandbox kits compile <kit>` compiles a kit ahead of its
   first use, which otherwise takes minutes.
 - **A sandbox runs while a session is held.** With the client, work inside

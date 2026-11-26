@@ -47,6 +47,11 @@ types:
 test *ARGS:
     uv run pytest {{ARGS}}
 
+# The tests on another supported Python (`just test-python 3.12`), as the CI
+# matrix runs them, in an environment of its own under `target/`.
+test-python VERSION *ARGS:
+    UV_PROJECT_ENVIRONMENT=target/venv-{{VERSION}} uv run --python {{VERSION}} pytest {{ARGS}}
+
 # The tests with the coverage of the package, below which they fail
 # (`[tool.coverage.report] fail_under` in pyproject.toml).
 coverage:

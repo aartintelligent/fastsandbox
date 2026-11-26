@@ -24,8 +24,8 @@ sbx version
 
 You also need:
 
-- **Python 3.14** or newer, and [uv](https://docs.astral.sh/uv/) or pip;
-  `uv python install 3.14` installs it.
+- **Python 3.12** or newer, and [uv](https://docs.astral.sh/uv/) or pip;
+  `uv python install 3.14` installs one.
 - **An Anthropic API key**, for Claude Code.
 
 ## 2. Install fastsandbox
