@@ -13,7 +13,7 @@
 [project]
 site_name = "fastsandbox"
 site_url = "https://aartintelligent.github.io/fastsandbox/"
-site_description = "Docker Sandboxes for Python: a typed async client and a declarative framework for tasks and AI agents in sandboxes"
+site_description = "Run code and coding agents in throw-away Docker Sandboxes, from Python."
 repo_url = "https://github.com/aartintelligent/fastsandbox"
 repo_name = "aartintelligent/fastsandbox"
 edit_uri = "edit/main/docs/"

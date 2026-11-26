@@ -1,256 +1,239 @@
 # fastsandbox
 
-Docker Sandboxes for Python: a typed async client of the `sandboxd` socket of
-[Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) (`sbx`), and
-**FastSandbox**, a declarative framework for tasks and AI coding agents that
-run in throw-away sandboxes.
+**Run code and coding agents in throw-away Docker Sandboxes, from Python.**
 
-It is built on [`docker-sandbox`](https://crates.io/crates/docker-sandbox), the
-Rust client of the socket, through PyO3: every call of the library, its
-streams, sessions and errors, with Pydantic models for every payload.
+fastsandbox lets a Python program hand work to
+[Docker Sandboxes](https://docs.docker.com/ai/sandboxes/): a test suite to run
+on a copy of a repository, an issue for a coding agent to fix, a tool to try
+out. It gets back a typed result, and the sandbox is gone.
 
-**Documentation**: <https://aartintelligent.github.io/fastsandbox/>
+[![CI](https://github.com/aartintelligent/fastsandbox/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/aartintelligent/fastsandbox/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/aartintelligent/fastsandbox/graph/badge.svg)](https://codecov.io/gh/aartintelligent/fastsandbox)
+[![PyPI](https://img.shields.io/pypi/v/fastsandbox.svg)](https://pypi.org/project/fastsandbox/)
+[![Python](https://img.shields.io/python/required-version-toml?tomlFilePath=https://raw.githubusercontent.com/aartintelligent/fastsandbox/main/pyproject.toml)](https://aartintelligent.github.io/fastsandbox/get-started/installation/)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://aartintelligent.github.io/fastsandbox/project/license/)
+[![Downloads](https://static.pepy.tech/badge/fastsandbox/month)](https://pepy.tech/projects/fastsandbox)
+[![Requires Docker Sandboxes](https://img.shields.io/badge/requires-Docker%20Sandboxes-2496ED?logo=docker&logoColor=white)](https://aartintelligent.github.io/fastsandbox/get-started/installation/)
+[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757?logo=claude&logoColor=white)](https://aartintelligent.github.io/fastsandbox/get-started/claude-code/)
+
+[Documentation](https://aartintelligent.github.io/fastsandbox/) ·
+[Quickstart](https://aartintelligent.github.io/fastsandbox/get-started/quickstart/) ·
+[API reference](https://aartintelligent.github.io/fastsandbox/reference/) ·
+[Examples](https://aartintelligent.github.io/fastsandbox/guides/examples/) ·
+[docker-sandbox, the Rust crate underneath](https://github.com/aartintelligent/docker-sandbox)
+
+fastsandbox is an independent, community-maintained project. It is not
+affiliated with, sponsored or endorsed by Docker, Inc., and uses the Docker
+name only to say which product it is made for.
+
+## Docker Sandboxes, in a few words
+
+[Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) runs code, and coding
+agents, in throw-away microVMs on your machine. Each sandbox has its own
+system, its own files and its own network policy. Its proxy decides which
+hosts it reaches and adds the credentials of a service to the requests sent to
+it, so a secret never has to be inside the sandbox. A sandbox is created from a
+kit, which says what it holds: a plain shell, or a coding agent such as Claude
+Code or Codex, ready to work. All of it is driven by the `sbx` CLI, which talks
+to a daemon, `sandboxd`, through a socket.
+
+For anyone who runs coding agents, this changes what is safe. An agent can edit
+files and run commands without asking, because the worst it can break is a
+machine thrown away after the run. It can work on a clone of your repository
+rather than the repository itself, and reach only the hosts you allowed.
+
+## The goal of this stack
+
+Without a library, a Python program that wants a sandbox runs the CLI and
+parses what it prints. fastsandbox talks to the socket of the daemon instead.
+
+It is built on [`docker-sandbox`](https://github.com/aartintelligent/docker-sandbox),
+a Rust crate by the same author that does all the work with the daemon. The
+crate is the client of the socket: it maps the API of the daemon version by
+version, and checks the version of the daemon when it connects. fastsandbox
+brings it to Python through a native extension, and adds two layers: a typed
+async client that reaches every route of the daemon, and **FastSandbox**,
+where the work done in a sandbox is a typed function under a decorator.
+
+What that buys you, in practice:
+
+- **Work declared, not scripted.** `@app.task` and `@app.agent` put the kit,
+  the network rules, the deadline and the credentials of a sandbox next to the
+  function that uses it. The signature of the function validates its inputs
+  and its result.
+- **Every agent `sbx` knows, one way.** Claude Code, Codex, Copilot, Cursor,
+  Devin, Docker Agent, Droid, Kiro and OpenCode are all run the same way: one
+  prompt run unattended, a stream of what the agent reports as it goes, or an
+  interactive session.
+- **Keys that stay outside.** The API key of an agent is read from your
+  environment and pushed to the sandbox of the run only. Its proxy adds the key
+  to the requests the agent sends to its service; the agent only sees a
+  placeholder.
+- **Your repository untouched.** On a private clone, the agent may change and
+  commit anything. Its work comes back as a patch to review, and your
+  directory stays as it was.
+- **Sandboxes that clean up after themselves.** The sandbox of a run is
+  deleted when the run ends, also on an error, a timeout or Ctrl-C.
+- **Errors you can act on.** A missing sandbox, a deadline or a failed command
+  each raise their own error class, with typed details, not a message to
+  parse.
+- **Tests without a daemon.** A fake daemon serves the socket API in memory,
+  so the code that drives sandboxes is tested in any CI.
+
+## Where it fits
+
+- **Coding agents on your repositories**: a fix, a review, a patch from a
+  private clone, or several agents on one issue with the tests choosing the
+  patch that holds.
+- **Checks in a throw-away machine**: a test suite, a build or a linter on a
+  copy of a repository, with access to the hosts it needs and no others.
+- **Code you would rather not run on your machine**: run it in a sandbox
+  instead, then read its output and the hosts it tried to reach.
+- **Agents with tools**: the MCP servers an agent needs, given through the
+  gateway of its sandbox.
+- **Tooling around the daemon**: a watcher on its events, an audit of the
+  network policy, a cleanup of old sandboxes and images.
+
+## Getting started
+
+Install [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) first, its
+daemon running for your user: fastsandbox connects to its socket and does
+nothing without it. Then, with Python 3.14 or newer:
+
+```sh
+uv add fastsandbox      # or: pip install fastsandbox
+fastsandbox info        # finds the daemon and checks its API version
+```
+
+An agent task: Claude Code explains a project, working on a private clone of
+it.
 
 ```python
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import BaseModel
-from fastsandbox import Context, FastSandbox, Network, Uploaded, WorkspaceDir
+from fastsandbox import Context, FastSandbox, WorkspaceDir
 
-app = FastSandbox("ci-agents")
-
-
-class Report(BaseModel):
-    passed: bool
-    summary: str
+app = FastSandbox("quickstart")
 
 
-@app.task(kit="shell", network=Network.allow("pypi.org"), timeout="10m")
-async def run_tests(ctx: Context, repo: Annotated[Path, Uploaded("/work")]) -> Report:
-    out = await ctx.sandbox.exec("cd /work && make test")
-    return Report(passed=out.ok, summary=out.stdout[-500:])
-
-
-@app.agent("claude", timeout="20m")
-async def fix_bug(ctx: Context, repo: Annotated[Path, WorkspaceDir()], issue: str) -> Report:
-    await ctx.agent.prompt(f"Fix this issue: {issue}")
-    check = await ctx.sandbox.exec("make test", working_dir=str(repo.resolve()))
-    return Report(passed=check.ok, summary=check.stdout[-500:])
+@app.agent("claude", timeout="15m")
+async def explain(ctx: Context, repo: Annotated[Path, WorkspaceDir(clone=True)]) -> str:
+    """Has Claude Code explain a project, working on a private clone of it."""
+    workdir = str(repo.resolve())
+    await ctx.agent.prompt(
+        "Explain what this project does and how its code is laid out, "
+        "in twenty lines at most, and write the explanation to EXPLAINED.md.",
+        working_dir=workdir,
+    )
+    # The file is in the clone, inside the sandbox: the host is untouched.
+    return await ctx.sandbox.read_text(f"{workdir}/EXPLAINED.md")
 ```
 
 ```sh
-fastsandbox run app.py fix_bug --repo . --issue "the parser drops the last line"
+fastsandbox kits compile claude      # once: the first compilation takes a few minutes
+export ANTHROPIC_API_KEY=sk-ant-...
+fastsandbox run agent.py explain --repo .
 ```
 
-Each call creates a sandbox from its kit, applies its network rules, pushes the
-agent's credentials to that sandbox only, keeps it running while the task runs,
-validates the inputs and the result with Pydantic, and deletes it.
+The [quickstart](https://aartintelligent.github.io/fastsandbox/get-started/quickstart/)
+explains this task line by line. From there, the
+[documentation](https://aartintelligent.github.io/fastsandbox/) covers what a
+real setup needs: an agent's repository, its network, following its work,
+giving it tools, then tasks, the client and testing.
 
-> This project is not affiliated with Docker, Inc. The `sandboxd` socket API is
-> private and changes with `sbx` releases; `docker-sandbox` keeps a map of it per
-> version and checks the API version of the daemon when it connects.
+### With Claude Code
 
-## Requirements
-
-fastsandbox is a client of Docker Sandboxes: it connects to the socket of its
-daemon, `sandboxd`, and does nothing without it. Install Docker Sandboxes first.
-
-- Linux or macOS, with [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/)
-  installed and its daemon running for the current user (`sbx version`).
-- Python 3.14 or newer.
-- To build from source: a Rust toolchain (1.88 or newer) and
-  [uv](https://docs.astral.sh/uv/).
-- The `sbx` CLI on `PATH`, to compile kits on first use (see [Kits](#kits)).
-
-## Installation
-
-Install Docker Sandboxes first (see the requirements above), then:
-
-```sh
-uv add fastsandbox      # or: pip install fastsandbox
-fastsandbox info        # the daemon, its version, the socket
-```
-
-The wheels hold the native extension: nothing is compiled. To work on
-fastsandbox itself, from a checkout, `uv sync` builds the extension and
-installs the package; see [CONTRIBUTING.md](https://github.com/aartintelligent/fastsandbox/blob/main/CONTRIBUTING.md).
-
-## With Claude Code
-
-The repository is also a Claude Code marketplace: its plugin teaches Claude the
-whole library and adds `/fastsandbox:new-project`, `/fastsandbox:add-task`,
-`/fastsandbox:doctor` and a reviewer of fastsandbox code.
+The repository is also a marketplace of Claude Code plugins. Its plugin teaches
+Claude the whole library and adds commands that set up a project, check the
+machine and add tasks:
 
 ```text
 /plugin install fastsandbox --marketplace aartintelligent/fastsandbox
 ```
 
-## The client
+See [With Claude Code](https://aartintelligent.github.io/fastsandbox/get-started/claude-code/).
 
-```python
-import fastsandbox
+## Status
 
+fastsandbox is in alpha. Version `0.1` covers:
 
-async def main() -> None:
-    client = await fastsandbox.connect()  # checks health and API version
-    async with client.create(kit="shell") as sandbox:  # deleted on exit
-        async with sandbox.running():  # a sandbox runs while a session is held
-            out = await sandbox.exec("uname -a", timeout=30)
-            await sandbox.write_file("/tmp/notes.txt", "hello")
-            await sandbox.deny_hosts("example.org")  # scoped to this sandbox
+- the whole socket API of the daemon;
+- tasks and agent tasks, with the nine agents of `sbx`;
+- the MCP gateway;
+- the fake daemon for tests.
 
-            session = await sandbox.attach(["bash"], tty=True, size=(120, 40))
-            await session.write("ls\n")
-            async for chunk in session:  # OutputChunk(stream, data)
-                ...
+It runs on Linux and macOS, where Docker Sandboxes runs.
 
-    async for event in await client.events.subscribe_live():
-        print(event.kind, event.action, event.sandbox_name)
+The socket API of Docker Sandboxes is private and changes with `sbx` releases.
+Each release of fastsandbox is checked against a range of API versions, and
+connecting to a daemon outside that range fails unless you allow it. The API
+of fastsandbox itself may still change before 1.0. Such changes are listed in
+the [changelog](https://github.com/aartintelligent/fastsandbox/blob/main/CHANGELOG.md).
 
+## FAQ
 
-fastsandbox.run(main())
-```
+**Is this an official Docker project?** No. fastsandbox is independent and
+community-maintained. Docker Sandboxes, its licence and its roadmap belong to
+Docker, Inc.
 
-Every handle and method of `docker-sandbox` is there:
+**Do I need Docker Sandboxes installed?** Yes. fastsandbox is a client of its
+daemon and connects to the `sandboxd` socket. The `sbx` CLI must be on `PATH`
+too: it compiles a kit the first time a sandbox uses it.
 
-| Domain | Python |
-|---|---|
-| Client, socket, API version | `connect()`, `Client.health`, `SUPPORTED_API`, `default_socket_path()` |
-| Daemon | `client.daemon`: health, info, settings, log levels, disk usage, diagnostics |
-| Sandboxes | `client.sandboxes`: list, get, find, create, `create_stream` (progress) |
-| Life cycle | `Sandbox`: inspect, start, stop, delete, save as template, working dir, host paths, VM metrics |
-| Sessions | `hold_session()`, `ensure_running()`, `async with sandbox.running()` |
-| Commands | `exec` (`ExecOutput`), `exec_inspect`, `attach` and `agent_session` (`Interactive`: stdin, output stream, resize, wait, collect) |
-| Files | read, write, archives, `upload_dir`, `download_dir` |
-| Ports | ports, publish, unpublish, replace the desired port |
-| Network | `client.policy`: rules, apply, check, log, profiles; per sandbox: allow, deny, remove hosts |
-| Credentials | `push_credentials` (`CredentialsUpdate`, custom secrets), service secrets |
-| Kits | `KitPackage`, `KitAgent`, `KitCompiler`, `KitCache`; in-place install and container swap |
-| MCP | gateway mode, registration checks, gateway of a sandbox, load and unload servers |
-| Images | list, inspect, pull (with progress), load, export, remove |
-| Events, prompts | `client.events`, `client.prompts`: typed async streams |
-| SSH | `ssh_tunnel()`, a byte tunnel; `fastsandbox ssh-proxy NAME` as a `ProxyCommand` |
+**Can it drive the Docker Engine, containers and images?** No. It works only
+with Docker Sandboxes; containers and images outside it are the job of the
+Docker SDK.
 
-Payloads are Pydantic models in `fastsandbox.models`, in the shape of the
-library: unknown fields of a newer daemon are kept. Errors derive from
-`fastsandbox.SandboxError`: `NotFoundError` (with `status`, `code`,
-`operation`), `ConflictError`, `DaemonUnavailableError`, `SandboxTimeoutError`,
-`CommandFailedError`, `UnsupportedVersionError`…
+**Does my API key enter the sandbox?** No, for every agent but Kiro. The key is
+pushed as a secret of the sandbox of the run, and the proxy adds it to the
+requests the agent sends to its service. Kiro has no such secret in `sbx`, so
+its key is passed to the agent process as an environment variable, and is
+visible inside the sandbox.
 
-## FastSandbox
+**Is it safe to let an agent run unattended?** The isolation is that of Docker
+Sandboxes; fastsandbox decides what crosses it: which directory, which hosts,
+which credentials. The default network policy of `sbx` may allow everything,
+so give an unattended agent network rules. Then check its work with the tests
+of the project rather than trusting what it reports. The
+[security guide](https://aartintelligent.github.io/fastsandbox/guides/security/)
+goes through each point.
 
-- **Tasks.** `@app.task(...)` declares a task: its kit, network rules, timeout
-  (`"10m"`), environment, CPUs and memory. Synchronous `def` tasks run in a
-  thread and reach the sandbox through `ctx.wait(awaitable)`.
-- **Agents.** `@app.agent("claude", ...)` declares a task whose sandbox runs a
-  coding agent: `claude`, `codex`, `copilot`, `cursor`, `devin`,
-  `docker-agent`, `droid`, `kiro` or `opencode`. Its credentials are read from
-  the environment (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`…) and pushed as
-  secrets of that sandbox only: the proxy injects them, the sandbox only sees a
-  placeholder. `ctx.agent.prompt(...)` runs it unattended,
-  `ctx.agent.stream(...)` yields what it reports as it goes,
-  `ctx.agent.session()` is interactive.
-- **Injection by annotation.** `Context`, `Sandbox`, `Client` and
-  `AgentRunner` parameters are injected, and `Annotated[T, Depends(fn)]`
-  resolves dependencies, generators included.
-- **Host paths.** `Annotated[Path, WorkspaceDir()]` mounts a directory as the
-  workspace (`clone=True` for a private Git clone), `Mounted(target, read_only)`
-  mounts more, `Uploaded(target)` copies the contents in.
-- **Lifespan.** `FastSandbox(lifespan=...)` runs around the application; what it
-  yields is `ctx.state`. `async with app:` shares one client and lifespan across
-  runs.
-- **Running.** `await app.run("task", **inputs)`, `app.run_sync(...)`,
-  `fastsandbox.run(task, **inputs)`, or the command line.
+**Can I test my code without a daemon?** Yes. `fastsandbox.testing` serves the
+socket API from memory: no `sbx`, no image, no microVM.
 
-## The command line
+**Is it production ready?** It is `0.1`. Every change runs the following
+checks:
 
-```sh
-fastsandbox tasks app.py                     # tasks and their inputs
-fastsandbox run app.py run_tests --repo .    # inputs become options
-fastsandbox run app.py:app task --input '{"repo": "."}'
-fastsandbox kits compile claude              # compile a kit into the cache
-fastsandbox info
-fastsandbox ssh-proxy my-sandbox             # for ~/.ssh/config ProxyCommand
-```
+- the tests on Linux, and on macOS when the package changes;
+- mypy in strict mode;
+- a coverage threshold;
+- the build of the documentation;
+- an audit of the Rust and Python dependencies.
 
-Without an application argument, `fastsandbox` reads `[tool.fastsandbox] app`
-in `pyproject.toml`, then looks for `app.py` and `main.py`.
+The socket API it relies on is private, though: read the status above before
+building a product on it.
 
-## Kits
+**How is it organised?** A Python package over
+[`docker-sandbox`](https://github.com/aartintelligent/docker-sandbox), the Rust
+client of the socket, joined by a thin native extension. Everything about the
+daemon is in the crate: a new route or field of the daemon goes into it
+first, then into fastsandbox. Every helper and every default is Python. The
+[design page](https://aartintelligent.github.io/fastsandbox/overview/design/)
+records the layers and the decisions behind them.
 
-The daemon cannot resolve kit references by itself: a kit package captures what
-the `sbx` CLI sends for a kit, once, and every later sandbox of that kit is
-created from it through the socket alone. `KitCache` compiles packages on first
-use into `~/.cache/fastsandbox/kits` (`FASTSANDBOX_KIT_CACHE` overrides it) and
-compiles them again when the daemon runs another `sbx` version. The first
-compilation of an agent kit can take a few minutes.
+## Contributing
 
-## Testing
-
-`fastsandbox.testing` has a fake daemon on a Unix socket and kit packages that
-need no `sbx` CLI, for tests that run anywhere:
-
-```python
-from fastsandbox import FastSandbox
-from fastsandbox.models import ExecOutput
-from fastsandbox.testing import FakeDaemon, fake_package
-
-
-async def test_run_tests(tmp_path):
-    async with FakeDaemon() as daemon:
-        daemon.on_exec(lambda sandbox, cmd: ExecOutput(exit_code=0, stdout="ok"))
-        app = FastSandbox(socket=str(daemon.socket_path), kit=fake_package(tmp_path / "kit"))
-        ...
-        assert daemon.sandboxes == {}  # deleted after the run
-```
-
-Interactive sessions and SSH tunnels upgrade the connection; the fake daemon
-does not, so code that uses them is tested against the real daemon.
-
-## Examples
-
-[`examples/`](https://github.com/aartintelligent/fastsandbox/blob/main/examples/README.md) holds one program per use of the library,
-as the examples of `docker-sandbox` do, with the same names: the basics, shell
-sandboxes (commands, files, network, policy, ports, secrets, SSH, clone mode,
-templates, kits, interactive shells, events), the MCP gateway, and every coding
-agent `sbx` knows, interactive, with an MCP server, or unattended on a task.
-
-```sh
-just example base
-just example shell-exec
-just example agent-claude ~/my-project -- "explain this project"
-```
-
-They talk to the daemon of the current user, create the sandboxes they need
-and delete them when they end, also on an error or Ctrl-C.
-
-## Security
-
-- Whoever can reach the socket controls every sandbox; an SSH tunnel is `root`
-  in its sandbox, without credentials. Keep both to trusted code.
-- The default network policy of `sbx` may allow everything: give unattended
-  agents a `Network` and read `client.policy.log()` afterwards.
-- Only push credentials a sandbox needs; they are scoped to it and go with it.
-
-## Development
-
-```sh
-just ci          # formatting, clippy, ruff, mypy, tests, coverage, dependencies
-just test        # the tests, against the fake daemon
-just test-live   # the tests against the real daemon (creates sandboxes)
-just example X   # one example of examples/ (creates sandboxes)
-just docs        # the documentation site, previewed on http://localhost:8000
-```
-
-The package `fastsandbox/` is at the root of the repository (the client one
-module per domain of `docker-sandbox`, the framework one module per concept),
-`docs/` for the pages of the documentation site and
-`docs_src/` for their snippets, each tested, `examples/` for the complete programs, `tests/` one file per
-behavior, and `fastsandbox-native/` for the Rust extension. `AGENTS.md` details the
-architecture, `CONTRIBUTING.md` how to contribute.
+See [CONTRIBUTING.md](https://github.com/aartintelligent/fastsandbox/blob/main/CONTRIBUTING.md):
+setting up, the checks, commits and pull requests. To report a vulnerability,
+see the [security policy](https://github.com/aartintelligent/fastsandbox/blob/main/SECURITY.md).
 
 ## License
 
-Licensed under either of [Apache License, Version 2.0](https://github.com/aartintelligent/fastsandbox/blob/main/LICENSE-APACHE) or
-[MIT license](https://github.com/aartintelligent/fastsandbox/blob/main/LICENSE-MIT) at your option.
+Licensed under either of [Apache License, Version 2.0](https://github.com/aartintelligent/fastsandbox/blob/main/LICENSE-APACHE)
+or [MIT license](https://github.com/aartintelligent/fastsandbox/blob/main/LICENSE-MIT)
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in this work by you, as defined in the Apache-2.0 license, shall
+be dual licensed as above, without any additional terms or conditions.
