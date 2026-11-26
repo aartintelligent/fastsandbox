@@ -21,7 +21,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 # The MSRV of `docker-sandbox`; PyO3 itself needs 1.85.
 rust-version = "1.88"
-version      = "0.1.1"
+version      = "0.1.2"
 
 # ------------------------------------------------------------------------------
 # Quality gates — the policy of `docker-sandbox`, inherited by every member

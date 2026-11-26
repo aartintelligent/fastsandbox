@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/aartintelligent/fastsandbox/compare/v0.1.1...v0.1.2) (2026-11-26)
+
+
+### Documentation
+
+* rewrite the README for users, with badges ([#5](https://github.com/aartintelligent/fastsandbox/issues/5)) ([cfcc4da](https://github.com/aartintelligent/fastsandbox/commit/cfcc4dafc82acdb38329d090f7cbeea8aa119121))
+
 ## [0.1.1](https://github.com/aartintelligent/fastsandbox/compare/v0.1.0...v0.1.1) (2026-11-25)
 
 
