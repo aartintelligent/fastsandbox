@@ -1,14 +1,17 @@
-"""Kit packages compiled once with the `sbx` CLI, then replayed through the socket alone.
+"""Kit packages for the examples: forged without the `sbx` CLI, or compiled by it when asked.
 
-The daemon cannot resolve kit references by itself: a package captures what
-the CLI sends once, and every later sandbox of that kit is created from it.
-The examples use the kit cache of the library (`fastsandbox.KitCache`, under
-`~/.cache/fastsandbox/kits` unless `FASTSANDBOX_KIT_CACHE` names another
-directory), which compiles a kit again when the daemon runs another `sbx`
-version. This module only adds a message before a compilation, which runs
-`sbx create` once on a throw-away sandbox and can take a few minutes for an
-agent kit; the kit images it pulls stay on the daemon as the cache of the next
-sandboxes.
+The daemon cannot resolve kit references by itself: a package holds what the
+CLI would send for a kit, and every sandbox of that kit is created from it
+through the socket alone. The examples take their packages from the kit cache
+of the library (`fastsandbox.KitCache`): forged without the CLI and kept in
+memory for the run, the base kit rebuilt from its published image, which the
+daemon pulls once. A composition only the CLI resolves, such as a mixin whose
+`spec.yaml` is written in YAML, is compiled by it when asked (`sbx=True`),
+into `~/.cache/fastsandbox/kits` unless `FASTSANDBOX_KIT_CACHE` names another
+directory: that runs `sbx create` once on a throw-away sandbox and can take a
+few minutes for an agent kit, and the package is compiled again when the
+daemon runs another `sbx` version. This module only adds a message before a
+kit is made.
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from fastsandbox import Kit, KitPackage
+from fastsandbox import Kit, KitCache, KitPackage
 from fastsandbox.exceptions import KitPackageError
 
 if TYPE_CHECKING:
@@ -35,24 +38,34 @@ async def package(
     *,
     mixins: Sequence[str | os.PathLike[str]] = (),
     args: Mapping[str, str] | None = None,
+    sbx: bool = False,
 ) -> KitPackage:
-    """The package of the kit `base` (`shell`, `claude`, `opencode`, …), compiled on first use.
+    """The package of the kit `base` (`shell`, `claude`, `opencode`, …), made on first use.
 
     Args:
         client: The client of the daemon the package is for.
-        base: The base kit: `shell`, an agent, a reference or a kit directory.
+        base: The base kit: `shell`, an agent or a published reference; a kit
+            directory needs `sbx`.
         mixins: Directories of mixin kits composed on top of the base, in
-            order; a composition is cached apart from its base kit.
+            order; a composition is kept apart from its base kit.
         args: Kit arguments (`name=value` for every kit, `kit.name=value` for
             one), as `sbx create --kit-arg` takes them.
+        sbx: Compiles the kit with the `sbx` CLI instead of forging it.
 
     Raises:
-        KitCompileError: When the `sbx` CLI cannot compile the kit, an argument
-            the kit does not declare or a value its pattern refuses included.
+        KitForgeError: When only the `sbx` CLI resolves the kit, and `sbx` is not set.
+        InvalidKitError: When the forge refuses a mixin, an argument the kit
+            does not declare or a value its pattern refuses.
+        KitCompileError: When the `sbx` CLI cannot compile the kit.
     """
     kit = _kit(base, mixins, args)
+    if not sbx:
+        print(f"forging the {kit.label} kit without the sbx CLI", file=sys.stderr)
+        return await client.package(kit)
+    cache = KitCache(sbx="sbx")
     try:
-        cached = KitPackage.open(client.kits.directory / kit.cache_key)
+        directory = cache.directory or Path()
+        cached = KitPackage.open(directory / kit.cache_key)
         fresh = cached.compiled_with == client.health.version
     except KitPackageError:
         fresh = False
@@ -61,7 +74,7 @@ async def package(
             f"compiling the {kit.label} kit with the sbx CLI (first run only, it can take a while)",
             file=sys.stderr,
         )
-    return await client.package(kit)
+    return await cache.package(client, kit)
 
 
 def _kit(

@@ -83,7 +83,8 @@ class FastSandbox:
             lifespan: Run around the life of the application; what it yields
                 is `Context.state`.
             kit: The kit of tasks that do not name one.
-            kits: The kit cache; the default cache directory otherwise.
+            kits: The kit cache; the one of the process otherwise (`KitCache.default()`),
+                which forges kits without the `sbx` CLI and keeps them in memory.
             client: A client to use instead of connecting.
             socket: The socket to connect to, when `client` is not given.
             max_concurrency: How many runs may hold a sandbox at once.

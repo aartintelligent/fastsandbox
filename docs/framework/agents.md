@@ -155,6 +155,6 @@ the kit declares, such as the model of `claude`:
 @app.agent("claude", kit=Kit(base="claude", args={"model": "claude-haiku-5-5"}))
 ```
 
-Each composition is compiled once and cached apart (see
+Each composition is forged once and kept apart (see
 [Kits](../client/kits.md)). The kit must describe an agent: one that does not
 makes the run raise `TaskError`.

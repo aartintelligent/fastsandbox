@@ -2,7 +2,8 @@
 
 The package installs the `fastsandbox` command, also run as
 `python -m fastsandbox`. It runs the tasks of an application, lists them,
-reports on the daemon, compiles kits ahead of time, and relays SSH to a
+reports on the daemon, compiles kits with the `sbx` CLI ahead of time, and
+relays SSH to a
 sandbox. This page covers each command and how the command finds the
 application.
 
@@ -11,7 +12,7 @@ application.
 | `fastsandbox run [APP] TASK [OPTIONS]` | Runs a task and prints its result |
 | `fastsandbox tasks [APP]` | Lists the tasks of an application and their inputs |
 | `fastsandbox info` | Reports the daemon, its version and the socket |
-| `fastsandbox kits compile KIT [--mixin M ...] [--arg NAME=VALUE ...]` | Compiles a kit into the kit cache |
+| `fastsandbox kits compile KIT [--mixin M ...] [--arg NAME=VALUE ...]` | Compiles a kit with the `sbx` CLI into the kit cache |
 | `fastsandbox ssh-proxy SANDBOX` | Relays SSH to a sandbox, as an OpenSSH `ProxyCommand` |
 
 `-v` (`--verbose`), before the command, logs what fastsandbox does.
@@ -90,14 +91,19 @@ with their traceback. An interruption with ++ctrl+c++ exits with status 130.
 
 `fastsandbox info` connects to the daemon and prints the socket, the version of
 `sbx` and its health, the API version of the daemon and the range this release
-supports, the number of sandboxes and the directory of the kit cache. A daemon
+supports, the number of sandboxes and the directory of the kit cache, or
+`memory` when kits are forged and kept in memory. A daemon
 whose API version is outside the supported range is reported with a warning
 instead of an error.
 
 ## Compiling a kit
 
 `fastsandbox kits compile KIT` compiles a kit with the `sbx` CLI into the kit
-cache, as the first run of a task of that kit would, and prints where:
+cache on disk, `~/.cache/fastsandbox/kits` unless `FASTSANDBOX_KIT_CACHE` names
+another directory, and prints where. Tasks forge their kits without the CLI,
+in a few seconds: compiling ahead of time is for a kit only the CLI resolves,
+given to an application whose cache compiles with the CLI
+(`FastSandbox(kits=KitCache(sbx="sbx"))`).
 
 ```sh
 fastsandbox kits compile claude

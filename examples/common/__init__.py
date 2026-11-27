@@ -6,8 +6,8 @@ here, so that their own code stays about the library:
 - `connect` reaches the daemon of the current user, `main` runs an example
   and reports its failure in one line, and `expect` fails it when a check
   does not hold;
-- `kit.package` compiles a kit once with the `sbx` CLI, through the kit cache
-  of the library, and says so;
+- `kit.package` forges a kit without the `sbx` CLI, or compiles it with the
+  CLI when asked, through the kit cache of the library, and says so;
 - `terminal.relay` plugs the local terminal into an interactive session, and
   `host` gives an agent session what `sbx run` passes from the host;
 - `program.install` copies a program of `programs/` into a sandbox;

@@ -28,7 +28,8 @@ pub(crate) fn to_py(err: Error) -> PyErr {
 
 /// Converts an error of `docker-sandbox-kit` into the matching Python
 /// exception: an error of the client as [`to_py`] does, a failed compilation
-/// as `KitCompileError`.
+/// as `KitCompileError`, a refused kit as `InvalidKitError` and a refused
+/// forging as `KitForgeError`.
 #[allow(
     clippy::needless_pass_by_value,
     reason = "the signature of the `map_err` callbacks it is used as"
@@ -47,9 +48,14 @@ fn build_kit(py: Python<'_>, err: &docker_sandbox_kit::Error) -> PyResult<PyErr>
     details.set_item("transient", err.is_transient())?;
     let class = match err {
         docker_sandbox_kit::Error::Compile(_) => "KitCompileError",
-        // A kit refused or forged, which the compiler the extension exposes
-        // does not report, or a variant added by a newer
-        // `docker-sandbox-kit`: still a SandboxError.
+        docker_sandbox_kit::Error::InvalidKit { kit, message } => {
+            details.set_item("kit", kit)?;
+            details.set_item("reason", message)?;
+            "InvalidKitError"
+        }
+        docker_sandbox_kit::Error::Forge(_) => "KitForgeError",
+        // A variant added by a newer `docker-sandbox-kit`: still a
+        // SandboxError.
         _ => "SandboxError",
     };
     let module = py.import(ERRORS_MODULE)?;

@@ -4,7 +4,9 @@ A fake `sandboxd` on a Unix socket, and kit packages that need no `sbx` CLI.
 
 `FakeDaemon` speaks enough of the daemon API for the client and FastSandbox:
 health, the life cycle of sandboxes, held sessions, command execution,
-network rules, credentials, files and image loading. Its state is in memory
+network rules, credentials, files, image loading, and the pulls and exports of
+the published kits `shell` and `claude` with the kit settings, so that kits
+are forged without the CLI as they are by default. Its state is in memory
 and every request is recorded. Replace or add a route with `route`, and decide
 what commands print with `on_exec`.
 
@@ -22,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import io
 import json
 import re
@@ -38,7 +41,10 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from .kits import KitPackage
 from .models import ExecOutput
 
-__all__ = ["FakeDaemon", "Request", "Response", "fake_package"]
+__all__ = ["FakeDaemon", "PublishedKit", "Request", "Response", "fake_package"]
+
+DESCRIPTOR_ANNOTATION = "vnd.docker.sandbox.kit.descriptor"
+"""The annotation of the image index of a published kit that holds its descriptor."""
 
 _REASONS = {
     200: "OK",
@@ -121,6 +127,10 @@ class FakeDaemon:
         rules: The network rules added through it.
         files: The files of the sandboxes, by `(sandbox, absolute path)`: what
             `PUT /sandbox/{name}/files` extracted, and what `GET` archives.
+        kits: The published kits it pulls and exports, by repository, e.g.
+            `docker.io/sbx/shell`: `shell` and `claude` at first.
+        settings: The daemon settings it knows, by key; an unknown one is a `404`, as the
+            daemon answers. The kit settings allow local, unsigned kits at first.
         requests: Every request received, in order.
     """
 
@@ -130,6 +140,8 @@ class FakeDaemon:
         self.sandboxes: dict[str, dict[str, Any]] = {}
         self.rules: list[dict[str, Any]] = []
         self.files: dict[tuple[str, str], bytes] = {}
+        self.kits: dict[str, PublishedKit] = published_kits()
+        self.settings: dict[str, Any] = {"kit.allowLocalKits": True, "kit.requireSignature": False}
         self.requests: list[Request] = []
         self._routes: list[tuple[str, re.Pattern[str], Handler]] = []
         self._exec: ExecHandler = lambda sandbox, cmd: ExecOutput(exit_code=0)
@@ -292,6 +304,9 @@ class FakeDaemon:
             ("POST", "/policy/network/rules", self._apply_rules),
             ("POST", "/docker/images/load", lambda r: Response(200, {"message": "image loaded"})),
             ("GET", "/docker/images", lambda r: Response(200, [])),
+            ("POST", "/docker/images/create", self._pull),
+            ("GET", "/docker/images/export", self._export),
+            ("GET", "/daemon/settings/{key}", self._setting),
         ]
         for method, pattern, handler in routes:
             self._routes.append((method, _compile(pattern), handler))
@@ -306,6 +321,32 @@ class FakeDaemon:
                 "api_version": self.api_version,
                 "release": True,
             },
+        )
+
+    def _pull(self, request: Request) -> Response:
+        """`POST /docker/images/create`: pulls a published kit of `kits`."""
+        reference = request.query.get("fromImage", "")
+        if repository(reference) not in self.kits:
+            return Response(200, lines=[{"error": f"pull access denied for {reference}"}])
+        return Response(200, lines=[{"status": f"Status: Image is up to date for {reference}"}])
+
+    def _export(self, request: Request) -> Response:
+        """`GET /docker/images/export`: the image of a published kit of `kits`."""
+        reference = request.query.get("name", "")
+        kit = self.kits.get(repository(reference))
+        if kit is None:
+            return _message(404, f"No such image: {reference}")
+        return Response(200, raw=kit.export(), content_type="application/x-tar")
+
+    def _setting(self, request: Request) -> Response:
+        """`GET /daemon/settings/{key}`: a setting of `settings`."""
+        key = unquote(request.params["key"])
+        if key not in self.settings:
+            return _message(404, f"unknown setting {key}")
+        value = self.settings[key]
+        kind = {bool: "bool", int: "int", list: "list"}.get(type(value), "string")
+        return Response(
+            200, {"key": key, "value": value, "default": value, "source": "default", "type": kind}
         )
 
     def _known(self, request: Request, answer: Callable[[dict[str, Any]], Any]) -> Response:
@@ -489,6 +530,114 @@ async def _read_request(reader: asyncio.StreamReader) -> Request | None:
     url = urlsplit(target)
     query = {key: values[-1] for key, values in parse_qs(url.query).items()}
     return Request(method.upper(), url.path, query, headers, body)
+
+
+@dataclass
+class PublishedKit:
+    """A published kit the fake daemon pulls and exports, so that kits are forged from it.
+
+    Attributes:
+        descriptor: The kit descriptor its image carries, its `spec.yaml` as JSON.
+        entrypoint: The entrypoint of its image.
+        cmd: The command of its image.
+    """
+
+    descriptor: dict[str, Any]
+    entrypoint: list[str] = field(default_factory=list)
+    cmd: list[str] = field(default_factory=list)
+
+    def export(self) -> bytes:
+        """The image as `GET /docker/images/export` streams it: the small files of its export."""
+        annotations = {DESCRIPTOR_ANNOTATION: json.dumps(self.descriptor)}
+        index = json.dumps(
+            {
+                "schemaVersion": 2,
+                "mediaType": "application/vnd.oci.image.index.v1+json",
+                "manifests": [],
+                "annotations": annotations,
+            }
+        ).encode()
+        config = json.dumps({"config": {"Entrypoint": self.entrypoint, "Cmd": self.cmd}}).encode()
+        digest = hashlib.sha256(index).hexdigest()
+        config_path = f"blobs/sha256/{hashlib.sha256(config).hexdigest()}"
+        files = {
+            f"blobs/sha256/{digest}": index,
+            config_path: config,
+            "index.json": json.dumps({"manifests": [{"digest": f"sha256:{digest}"}]}).encode(),
+            "manifest.json": json.dumps([{"Config": config_path}]).encode(),
+        }
+        buffer = io.BytesIO()
+        with tarfile.open(fileobj=buffer, mode="w") as archive:
+            for name, data in files.items():
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                archive.addfile(info, io.BytesIO(data))
+        return buffer.getvalue()
+
+
+def published_kits() -> dict[str, PublishedKit]:
+    """The published kits a fake daemon serves at first: `shell`, and `claude`.
+
+    `claude` declares the network and the credential of its agent, as the real kit does.
+    """
+    sbx = {"type": "com.docker.sandbox/sbx@1"}
+    claude = [
+        sbx,
+        {
+            "type": "com.docker.sandbox/network-policy@1",
+            "config": {"runtime": {"allow": ["api.anthropic.com:443"]}},
+        },
+        {
+            "type": "com.docker.sandbox/credential@1",
+            "config": {
+                "service": "anthropic",
+                "apiKey": {
+                    "inject": [
+                        {"domain": "api.anthropic.com", "header": "x-api-key", "format": "%s"}
+                    ]
+                },
+            },
+        },
+    ]
+    return {
+        "docker.io/sbx/shell": PublishedKit(
+            {
+                "schemaVersion": "3",
+                "kind": "workload",
+                "displayName": "Shell",
+                "capabilities": [sbx],
+            },
+            entrypoint=["bash", "-c", 'exec "$@"', "bash"],
+            cmd=["bash", "-l"],
+        ),
+        "docker.io/sbx/claude": PublishedKit(
+            {
+                "schemaVersion": "3",
+                "kind": "workload",
+                "displayName": "Claude Code",
+                "capabilities": claude,
+            },
+            entrypoint=["claude"],
+            cmd=["--dangerously-skip-permissions"],
+        ),
+    }
+
+
+def repository(reference: str) -> str:
+    """The repository of the image reference `reference`, normalized as Docker does.
+
+    `sbx/shell:latest` and `docker.io/sbx/shell@sha256:…` are `docker.io/sbx/shell`.
+    """
+    name = reference.split("@", 1)[0]
+    last = name.rsplit("/", 1)[-1]
+    if ":" in last:
+        name = name[: len(name) - len(last)] + last.split(":", 1)[0]
+    first = name.split("/", 1)[0]
+    if "/" not in name:
+        name = f"docker.io/library/{name}"
+    elif "." not in first and ":" not in first and first != "localhost":
+        name = f"docker.io/{name}"
+    return name
 
 
 def fake_package(

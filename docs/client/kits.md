@@ -2,34 +2,60 @@
 
 A sandbox is created from a kit: `shell`, the kit of a coding agent, or a
 composition of a base kit and mixins. The daemon cannot resolve a kit by
-itself: the `sbx` CLI does, then sends the daemon what it resolved. A **kit
-package** captures what the CLI sends for a kit, once; every later sandbox of
-that kit is created from it through the socket alone. This page covers the
-cache that compiles packages, compositions, packages themselves, and kits
-added to a running sandbox.
+itself: a **kit package** holds what the `sbx` CLI would send it for a kit,
+and every sandbox of that kit is created from it through the socket alone.
+fastsandbox forges packages without the CLI, the base kit rebuilt from its
+published image; it compiles them with the CLI only when asked. This page
+covers the cache that makes packages, compositions, packages themselves, and
+kits added to a running sandbox.
 
 ## The kit cache
 
 `client.create(kit="shell")` gets the package of the kit from the cache of the
 client, [`client.kits`][fastsandbox.Client.kits], a
-[`KitCache`][fastsandbox.KitCache]:
+[`KitCache`][fastsandbox.KitCache]: by default the one of the process
+([`KitCache.default()`][fastsandbox.KitCache.default]), shared by its clients.
 
-- a kit is compiled on first use, with the `sbx` CLI on `PATH`: the CLI runs
-  `sbx create` once, on a throw-away sandbox, behind a proxy that captures what
-  it sends. It can take a few minutes for an agent kit; the kit images it
-  pulls stay on the daemon, as the cache of the next sandboxes;
-- a package is compiled again when the daemon runs another `sbx` version than
-  the one it was compiled with;
-- the cache is in `~/.cache/fastsandbox/kits`, or under `$XDG_CACHE_HOME`;
-  `FASTSANDBOX_KIT_CACHE` names another directory.
+- A kit is forged on first use, without the `sbx` CLI: the daemon pulls and
+  exports the published image of the base kit, `docker.io/sbx/shell` for
+  `shell`, and the forge rebuilds the kit from it. It takes a few seconds once
+  the daemon holds the image.
+- The package is kept in memory for the process: nothing is written on the
+  host. A later process forges it again.
+- `KitCache(directory)`, or `FASTSANDBOX_KIT_CACHE`, keeps the packages in a
+  directory instead, for later processes too. A forged package is used again
+  while the daemon speaks the API it was forged for.
 
 ```python title="docs_src/client/kits.py" hl_lines="7 11"
 --8<-- "docs_src/client/kits.py"
 ```
 
 [`client.package(kit)`][fastsandbox.Client.package] gives the package of a
-kit, compiled now unless cached; given a package, it returns it as it is. To
-compile ahead of time, from a shell or a deployment script:
+kit, made now unless kept; given a package, it returns it as it is.
+
+### Compiling with the CLI
+
+The forge rebuilds published kits and reads mixins from their directories. A
+kit only the CLI resolves raises
+[`KitForgeError`][fastsandbox.exceptions.KitForgeError]: the directory of a
+local base kit, or a mixin given by reference. A cache given the `sbx` program
+compiles kits with it instead:
+
+```python
+from fastsandbox import KitCache
+
+package = await KitCache(sbx="sbx").package(client, "./kits/my-local-kit")
+sandbox = await client.create(kit=package)
+```
+
+A FastSandbox application takes such a cache as `FastSandbox(kits=KitCache(sbx="sbx"))`.
+The CLI runs `sbx create` once, on a throw-away sandbox, behind a proxy that
+captures what it sends. It can take a few minutes for an agent kit; the kit
+images it pulls stay on the daemon, as the cache of the next sandboxes. Such a
+cache keeps its packages in `~/.cache/fastsandbox/kits`, or under
+`$XDG_CACHE_HOME`, unless given a directory, and compiles a package again when
+the daemon runs another `sbx` version. To compile ahead of time, from a shell
+or a deployment script:
 
 ```sh
 fastsandbox kits compile claude
@@ -38,10 +64,12 @@ fastsandbox kits compile shell --mixin ./kits/my-mixin --arg model=fast
 
 ## Compositions
 
-A [`Kit`][fastsandbox.Kit] composes a `base` kit (an agent, `shell`, a kit
-reference or the directory of a local kit) with `mixins`, in order, and kit
-`args`, as `sbx create --kit-arg` takes them. Each composition is cached apart,
-under its [`cache_key`][fastsandbox.Kit.cache_key].
+A [`Kit`][fastsandbox.Kit] composes a `base` kit with `mixins`, in order, and
+kit `args`, as `sbx create --kit-arg` takes them. The base is an agent or
+`shell`, a published kit reference, or, for the CLI only, the directory of a
+local kit; a mixin is a directory, whose `spec.yaml` the forge reads when it
+is written in the JSON subset of YAML. Each composition is kept apart, under
+its [`cache_key`][fastsandbox.Kit.cache_key].
 
 ```python
 from fastsandbox import Kit
@@ -50,24 +78,30 @@ kit = Kit(base="shell", mixins=("./kits/my-mixin",), args={"model": "fast"})
 sandbox = await client.create(kit=kit)
 ```
 
-A kit the CLI cannot compile, an argument the kit does not declare for
-instance, raises [`KitCompileError`][fastsandbox.exceptions.KitCompileError].
-[`KitCompiler`][fastsandbox.KitCompiler] compiles into a directory of one's
-choice, without the cache.
+The forge checks the arguments as the CLI does: an argument the kit does not
+declare, or a value it refuses, raises
+[`InvalidKitError`][fastsandbox.exceptions.InvalidKitError] before anything
+is created, as does a mixin it cannot take. [`KitForge`][fastsandbox.KitForge]
+forges without the cache, in memory or into a directory of one's choice;
+[`KitCompiler`][fastsandbox.KitCompiler] compiles with the CLI, and raises
+[`KitCompileError`][fastsandbox.exceptions.KitCompileError] when the CLI
+cannot.
 
 ## Packages
 
-A [`KitPackage`][fastsandbox.KitPackage] is a directory;
+A [`KitPackage`][fastsandbox.KitPackage] is held in memory, or is a directory;
 [`KitPackage.open(dir)`][fastsandbox.KitPackage.open] opens one, and raises
 [`KitPackageError`][fastsandbox.exceptions.KitPackageError] when the directory
 holds none. It records:
 
 - `kit_refs`, the kit references, base kit first, and `kit_artifacts`, what
   the daemon receives for them;
-- `compiled_with`, the `sbx` version it was compiled with;
+- `dir`, its directory, `None` for a package held in memory;
+- `compiled_with`, the `sbx` version that compiled it, `None` for a forged
+  package, and `compiled_api`, the daemon API it was written for;
 - `images`, the image archives of the kits, which
   [`load_images(client)`][fastsandbox.KitPackage.load_images] loads into the
-  daemon;
+  daemon; those of a package held in memory have no path;
 - `agent`, the [`KitAgent`][fastsandbox.KitAgent] the base kit describes, if
   any: its program, its run options, the command line that runs it
   ([`command(*args)`][fastsandbox.KitAgent.command]) and the hosts it needs
@@ -95,6 +129,7 @@ uses the parts of the package with
 
 ## In tests
 
+The fake daemon serves the published kits `shell` and `claude`, so that kits
+are forged against it as against the daemon;
 [`fastsandbox.testing.fake_package()`][fastsandbox.testing.fake_package]
-writes a package that needs no `sbx` CLI, for the fake daemon (see
-[Testing](../guides/testing.md)).
+writes a package of one's own (see [Testing](../guides/testing.md)).

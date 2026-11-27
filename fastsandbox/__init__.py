@@ -35,6 +35,7 @@ from .kits import Kit as Kit
 from .kits import KitAgent as KitAgent
 from .kits import KitCache as KitCache
 from .kits import KitCompiler as KitCompiler
+from .kits import KitForge as KitForge
 from .kits import KitPackage as KitPackage
 from .mcp import Mcp as Mcp
 from .models import CreateRequest as CreateRequest

@@ -21,9 +21,10 @@ Full page: https://aartintelligent.github.io/fastsandbox/framework/lifespan/
   - `socket="/path/to/sandboxd.sock"`: another socket;
   - `client=client`: a `Client` already connected, used as it is (for instance
     `await fastsandbox.connect(version_policy="warn")`);
-  - `kits=KitCache(...)`: where kits are compiled, instead of the default
-    cache directory (`$FASTSANDBOX_KIT_CACHE`, else
-    `$XDG_CACHE_HOME/fastsandbox/kits`, else `~/.cache/fastsandbox/kits`).
+  - `kits=KitCache(...)`: where kits come from, instead of the cache of the
+    process, which forges them without the `sbx` CLI and keeps them in memory:
+    `KitCache(directory)` keeps them in a directory, `KitCache(sbx="sbx")`
+    compiles them with the CLI.
 
 ## Example
 

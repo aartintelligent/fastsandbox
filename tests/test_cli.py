@@ -5,9 +5,11 @@ import json
 import threading
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from fastsandbox import SOCKET_ENV, Kit
 from fastsandbox.cli import main
 from fastsandbox.models import ExecOutput
 from fastsandbox.testing import FakeDaemon, fake_package
@@ -88,3 +90,31 @@ def test_run_takes_one_json_input(app_file: Path, capsys: pytest.CaptureFixture[
 def test_unknown_tasks_fail_cleanly(app_file: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["run", str(app_file), "nope"]) == 1
     assert "unknown task 'nope'" in capsys.readouterr().err
+
+
+def test_info_describes_the_daemon(
+    threaded_daemon: FakeDaemon, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv(SOCKET_ENV, str(threaded_daemon.socket_path))
+    monkeypatch.delenv("FASTSANDBOX_KIT_CACHE", raising=False)
+    assert main(["info"]) == 0
+    out = capsys.readouterr().out
+    assert f"socket       {threaded_daemon.socket_path}" in out
+    assert "sandboxes    0" in out
+    assert "kit cache    memory, kits forged without the sbx CLI" in out
+
+
+def test_kits_compile_compiles_with_the_cli_into_the_cache(
+    threaded_daemon: FakeDaemon,
+    compiled: list[dict[str, Any]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv(SOCKET_ENV, str(threaded_daemon.socket_path))
+    monkeypatch.setenv("FASTSANDBOX_KIT_CACHE", str(tmp_path))
+    command = ["kits", "compile", "shell", "--mixin", "./kits/tools", "--arg", "model=fast"]
+    assert main(command) == 0
+    kit = Kit(base="shell", mixins=("./kits/tools",), args={"model": "fast"})
+    assert capsys.readouterr().out == f"{kit.label}: {tmp_path / kit.cache_key}\n"
+    assert [(call["sbx"], call["args"]) for call in compiled] == [("sbx", {"model": "fast"})]

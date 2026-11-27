@@ -24,7 +24,7 @@ async def main() -> None:
         print(f"sandbox {existing.name:<30} {existing.status:<8} {existing.agent}")
     print(f"{len(await client.images.list())} images held by the daemon")
 
-    # A sandbox of the `shell` kit, created from a package compiled once; the
+    # A sandbox of the `shell` kit, created from a package forged without the CLI; the
     # `async with` block deletes it on the way out, whatever happens.
     package = await kit.package(client, "shell")
     async with (

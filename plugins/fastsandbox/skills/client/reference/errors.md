@@ -32,6 +32,8 @@ and `transient` (whether the same call may succeed later).
 | `CommandFailedError` | `SandboxError` | a checked command exited non-zero | `exit_code`, `stdout`, `stderr` |
 | `KitPackageError` | `SandboxError` | a kit package directory is missing or invalid | `path` |
 | `KitCompileError` | `SandboxError` | the `sbx` CLI could not compile a kit | |
+| `InvalidKitError` | `SandboxError` | the forge refuses a kit: a descriptor it cannot take, an argument the kit does not declare or a value it refuses | `kit`, `reason` |
+| `KitForgeError` | `SandboxError` | a kit could not be forged without the `sbx` CLI: one only the CLI resolves, or the kit policy of the daemon forbids it | |
 | `TaskError` | `SandboxError` | a FastSandbox task failed or is misdeclared | |
 
 `code` is the daemon's machine-readable code when it gives one, e.g.

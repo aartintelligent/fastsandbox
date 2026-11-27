@@ -18,7 +18,7 @@ options:
 | Option | Default | What it does |
 |---|---|---|
 | `name` | The name of the function | The name the task is run by. A second task of the same name raises [`TaskError`][fastsandbox.exceptions.TaskError]. |
-| `kit` | The kit of the application | The kit of the sandbox: a name such as `"shell"` or `"claude"`, a [`Kit`][fastsandbox.Kit] composed with mixins and kit arguments, or a [`KitPackage`][fastsandbox.KitPackage] already compiled. |
+| `kit` | The kit of the application | The kit of the sandbox: a name such as `"shell"` or `"claude"`, a [`Kit`][fastsandbox.Kit] composed with mixins and kit arguments, or a [`KitPackage`][fastsandbox.KitPackage] already made. |
 | `network` | No rule | The [network rules](network.md) of the sandbox. |
 | `timeout` | None | The deadline of the function (see [Timeouts](#timeouts)). |
 | `env` | None | Environment variables of the sandbox. |

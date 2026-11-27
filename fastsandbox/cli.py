@@ -162,16 +162,16 @@ async def _info() -> int:
     print(f"sbx          {health.version} ({health.status})")
     print(f"api          {health.api_version} (supported {SUPPORTED_API[0]} to {SUPPORTED_API[1]})")
     print(f"sandboxes    {len(await client.sandboxes.list())}")
-    print(f"kit cache    {client.kits.directory}")
+    print(f"kit cache    {client.kits.directory or 'memory, kits forged without the sbx CLI'}")
     return 0
 
 
 async def _compile(kit: str, mixins: list[str], args: list[str]) -> int:
-    """`fastsandbox kits compile`."""
+    """`fastsandbox kits compile`: compiles a kit with the `sbx` CLI into the kit cache."""
     pairs = dict(arg.split("=", 1) for arg in args)
     client = await connect()
     composition = Kit(base=kit, mixins=tuple(mixins), args=pairs)
-    package = await KitCache().package(client, composition)
+    package = await KitCache(sbx="sbx").package(client, composition)
     print(f"{composition.label}: {package.dir}")
     return 0
 
@@ -203,7 +203,7 @@ def _parser() -> argparse.ArgumentParser:
     kits = commands.add_parser("kits", help="kit packages").add_subparsers(
         dest="kits_command", required=True
     )
-    compile_ = kits.add_parser("compile", help="compile a kit into the cache")
+    compile_ = kits.add_parser("compile", help="compile a kit with the sbx CLI into the cache")
     compile_.add_argument("kit")
     compile_.add_argument("--mixin", action="append", default=[])
     compile_.add_argument("--arg", action="append", default=[], metavar="NAME=VALUE")

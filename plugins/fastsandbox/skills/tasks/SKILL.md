@@ -48,8 +48,9 @@ the current user (`sbx version` answers), or every run raises
 - **Start the application once for many runs** with `async with app:`: one
   client and one lifespan for every run inside. Without it, each run connects
   and enters the lifespan on its own.
-- **The first run of a kit compiles it** with the `sbx` CLI (minutes for an
-  agent kit); `fastsandbox kits compile shell` does it ahead of time.
+- **The first run of a kit forges it** without the `sbx` CLI (seconds, once
+  the daemon holds the image of its base kit) and keeps it in memory; a kit
+  only the CLI resolves needs `FastSandbox(kits=KitCache(sbx="sbx"))`.
 - **Agent tasks** (`@app.agent("claude")`, `ctx.agent`) are covered by the
   `agents` skill; the sandbox API used through `ctx.sandbox` by the `client`
   skill; tests without a daemon by the `testing` skill.

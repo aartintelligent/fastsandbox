@@ -45,14 +45,17 @@ fastsandbox supports, the number of sandboxes and the kit cache. Read it:
   `DOCKER_SANDBOXES_API` points elsewhere;
 - a warning on the API version: the daemon runs a version this release was not
   checked against; upgrading fastsandbox is the fix;
-- the kit cache directory: where compiled kits are kept.
+- the kit cache: `memory` when kits are forged and kept in memory, the
+  default, or the directory `FASTSANDBOX_KIT_CACHE` names.
 
 ## 4. The kits
 
-A kit is compiled with the `sbx` CLI on its first use, which can take minutes.
-If the user names the kits they will use (`shell`, `claude`, `codex`...),
-suggest `uv run fastsandbox kits compile <kit>` for each, and run it only if
-they agree.
+A kit is forged without the `sbx` CLI on its first use: the daemon pulls the
+image of its base kit once, then it takes seconds. Nothing to prepare. Only a
+kit that the CLI alone resolves (a local kit directory, a mixin given by
+reference) needs `KitCache(sbx="sbx")`; for such a kit, suggest
+`uv run fastsandbox kits compile <kit>` ahead of time, and run it only if they
+agree.
 
 ## 5. The agent keys
 

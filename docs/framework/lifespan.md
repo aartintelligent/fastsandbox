@@ -52,8 +52,9 @@ The application connects to the daemon of the current user, through the socket
 - `socket="/path/to/sandboxd.sock"` connects to another socket;
 - `client=` gives a [`Client`][fastsandbox.Client] already connected, used as it
   is;
-- `kits=` gives the [`KitCache`][fastsandbox.KitCache] the kits are compiled
-  into, instead of the default cache directory.
+- `kits=` gives the [`KitCache`][fastsandbox.KitCache] the kits come from,
+  instead of the one of the process: one that keeps them in a directory, or
+  one that compiles them with the `sbx` CLI (`KitCache(sbx="sbx")`).
 
 That is also how tests point an application at the fake daemon: see
 [Testing](../guides/testing.md).

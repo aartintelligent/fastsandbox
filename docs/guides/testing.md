@@ -66,10 +66,16 @@ there:
 - `DOCKER_SANDBOXES_API` ([`fastsandbox.SOCKET_ENV`][fastsandbox.SOCKET_ENV])
   names the socket [`connect()`][fastsandbox.connect] uses when it is given
   none.
-- `FASTSANDBOX_KIT_CACHE` moves the kit cache; a package written there under
-  the cache key of a kit, `Kit(base="shell").cache_key`, is the package of that
-  kit. `fake_package` writes one compiled with the `sbx` version the fake daemon
-  reports, so that the cache uses it instead of compiling the kit with the CLI.
+- `FASTSANDBOX_KIT_CACHE` gives the kit cache a directory; a package written
+  there under the cache key of a kit, `Kit(base="shell").cache_key`, is the
+  package of that kit. `fake_package` writes one compiled with the `sbx` version
+  the fake daemon reports, so that the cache uses it as it is.
+
+Without one, the kits are forged against the fake daemon, as against the
+daemon: it serves the published kits `shell` and `claude`
+([`FakeDaemon.kits`][fastsandbox.testing.FakeDaemon], a
+[`PublishedKit`][fastsandbox.testing.PublishedKit] each), which a test extends
+with a kit of its own.
 
 The tests of this repository make that a fixture, `fake_environment`, with
 packages of the `shell` and `claude` kits: every snippet of this documentation

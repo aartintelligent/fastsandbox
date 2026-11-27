@@ -42,9 +42,9 @@ synchronous code, as the script does under `__main__`; in async code,
 `await app.run("uname")` or `await uname()`. [Running tasks](running.md) covers
 every way, [Command line](cli.md) the options the inputs become.
 
-The first run of a kit compiles it with the `sbx` CLI into the kit cache, which
-can take a few minutes for an agent kit; later runs reuse the package (see
-[Kits](../client/kits.md)).
+The first run of a kit forges it without the `sbx` CLI, the base kit rebuilt
+from its published image, and keeps the package in memory for the next runs of
+the process (see [Kits](../client/kits.md)).
 
 ## What a run does
 

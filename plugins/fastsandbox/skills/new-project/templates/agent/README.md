@@ -15,7 +15,6 @@ Coding agents at work in throw-away sandboxes of
 
 ```sh
 uv sync
-uv run fastsandbox kits compile claude   # once: the first compilation takes minutes
 uv run fastsandbox run fix --repo /path/to/repository --issue "the parser drops the last line" > fix.patch
 git -C /path/to/repository am "$PWD/fix.patch"
 ```

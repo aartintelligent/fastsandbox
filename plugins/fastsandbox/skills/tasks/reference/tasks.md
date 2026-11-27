@@ -21,7 +21,7 @@ FastSandbox(name="fastsandbox", *, lifespan=None, kit="shell", kits=None,
 | `name` | `"fastsandbox"` | Prefix of the names of its sandboxes. |
 | `lifespan` | None | Runs around the life of the application; what it yields is `ctx.state` (see lifespan.md). |
 | `kit` | `"shell"` | The kit of the tasks that name none. |
-| `kits` | the default cache | The `KitCache` kits are compiled into. |
+| `kits` | the cache of the process | The `KitCache` kits come from: forged without the `sbx` CLI and kept in memory by default. |
 | `client` | None | A connected `Client`, used instead of connecting. |
 | `socket` | None | The socket to connect to when `client` is not given; else the socket of `sbx`. |
 | `max_concurrency` | None | How many runs of any task may hold a sandbox at once. |
@@ -31,7 +31,7 @@ FastSandbox(name="fastsandbox", *, lifespan=None, kit="shell", kits=None,
 | Option | Default | What it does |
 |---|---|---|
 | `name` | the function name | The name the task is run by. A second task of the same name raises `TaskError`. |
-| `kit` | the kit of the application | A kit name (`"shell"`), a `Kit` composed with mixins and arguments, or a compiled `KitPackage`. |
+| `kit` | the kit of the application | A kit name (`"shell"`), a `Kit` composed with mixins and arguments, or a `KitPackage` already made. |
 | `network` | no rule | A `Network` value: rules of its sandbox only (see network.md). |
 | `timeout` | None | Deadline of the function: seconds, a `timedelta`, or a duration string. |
 | `env` | None | Environment variables of the sandbox, a `dict[str, str]`. |

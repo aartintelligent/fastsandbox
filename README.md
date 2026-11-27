@@ -12,8 +12,10 @@ out. It gets back a typed result, and the sandbox is gone.
 [![PyPI](https://img.shields.io/pypi/v/fastsandbox.svg)](https://pypi.org/project/fastsandbox/)
 [![Python](https://img.shields.io/python/required-version-toml?tomlFilePath=https://raw.githubusercontent.com/aartintelligent/fastsandbox/main/pyproject.toml)](https://aartintelligent.github.io/fastsandbox/get-started/installation/)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://aartintelligent.github.io/fastsandbox/project/license/)
-[![Downloads](https://static.pepy.tech/badge/fastsandbox/month)](https://pepy.tech/projects/fastsandbox)
+[![Monthly Downloads](https://static.pepy.tech/badge/fastsandbox/month)](https://pepy.tech/projects/fastsandbox)
+
 [![Requires Docker Sandboxes](https://img.shields.io/badge/requires-Docker%20Sandboxes-2496ED?logo=docker&logoColor=white)](https://aartintelligent.github.io/fastsandbox/get-started/installation/)
+
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757?logo=claude&logoColor=white)](https://aartintelligent.github.io/fastsandbox/get-started/claude-code/)
 
 [Documentation](https://aartintelligent.github.io/fastsandbox/) ·
@@ -131,7 +133,6 @@ async def explain(ctx: Context, repo: Annotated[Path, WorkspaceDir(clone=True)])
 ```
 
 ```sh
-fastsandbox kits compile claude      # once: the first compilation takes a few minutes
 export ANTHROPIC_API_KEY=sk-ant-...
 fastsandbox run agent.py explain --repo .
 ```
@@ -178,8 +179,10 @@ community-maintained. Docker Sandboxes, its licence and its roadmap belong to
 Docker, Inc.
 
 **Do I need Docker Sandboxes installed?** Yes. fastsandbox is a client of its
-daemon and connects to the `sandboxd` socket. The `sbx` CLI must be on `PATH`
-too: it compiles a kit the first time a sandbox uses it.
+daemon and connects to the `sandboxd` socket, and that is all it uses: it forges
+the kits it needs through the socket, without the `sbx` CLI. The CLI is used
+only for a kit that it alone resolves, such as a local kit directory, when
+asked.
 
 **Can it drive the Docker Engine, containers and images?** No. It works only
 with Docker Sandboxes; containers and images outside it are the job of the

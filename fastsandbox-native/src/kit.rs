@@ -1,16 +1,16 @@
-//! Compiled kit packages, the agent they describe, and the kit compiler.
+//! Kit packages, the agent they describe, the kit forge and the kit compiler.
 //!
-//! A kit package is what `sbx create` would send for a kit, captured once by
-//! the compiler (which runs the `sbx` CLI behind a capturing proxy) and
-//! replayed through the socket alone afterwards.
+//! A kit package is what `sbx create` would send for a kit, replayed through
+//! the socket alone. The forge writes it without the `sbx` CLI, the base kit
+//! rebuilt from its published image, in memory or into a directory; the
+//! compiler captures it once from the CLI, run behind a capturing proxy.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use docker_sandbox::kit::{ImageArchive, KitAgent as LibAgent, KitPackage as LibPackage};
 use docker_sandbox::sandbox::CreateRequest;
-use docker_sandbox_kit::CompileJob;
-use pyo3::exceptions::PyRuntimeError;
+use docker_sandbox_kit::{CompileJob, Mixin};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use serde_json::Value;
@@ -19,7 +19,7 @@ use crate::client::Client;
 use crate::convert::{from_py, optional_duration, serde_future, to_py};
 use crate::sandbox::Sandbox;
 
-/// A compiled kit package, opened from its directory.
+/// A kit package: opened from its directory, compiled, or forged in memory.
 #[pyclass(frozen, module = "fastsandbox._native")]
 #[derive(Debug, Clone)]
 pub(crate) struct KitPackage {
@@ -37,18 +37,16 @@ impl KitPackage {
             .map_err(crate::error::to_py)
     }
 
-    /// The directory of the package.
-    ///
-    /// # Errors
-    ///
-    /// Fails for a package held in memory, which the extension does not make
-    /// yet: it opens or compiles packages into a directory.
+    /// The directory of the package, `None` for a package held in memory.
     #[getter]
-    fn dir(&self) -> PyResult<PathBuf> {
-        self.inner
-            .dir()
-            .map(Path::to_path_buf)
-            .ok_or_else(|| PyRuntimeError::new_err("the kit package is held in memory"))
+    fn dir(&self) -> Option<PathBuf> {
+        self.inner.dir().map(Path::to_path_buf)
+    }
+
+    /// The daemon API version the package was written for.
+    #[getter]
+    fn compiled_api(&self) -> Option<String> {
+        self.inner.compiled_api().map(str::to_owned)
     }
 
     /// The `sbx` version the package was compiled with.
@@ -83,7 +81,8 @@ impl KitPackage {
             .iter()
             .map(|image| {
                 let item = PyDict::new(py);
-                // A package read from a directory holds its images as files.
+                // A package held in memory holds its images in memory: they
+                // have no path.
                 let path = match &image.archive {
                     ImageArchive::File(path) => Some(path),
                     _ => None,
@@ -275,6 +274,62 @@ impl KitCompiler {
             inner
                 .compile(&job)
                 .await
+                .map(|inner| KitPackage { inner })
+                .map_err(crate::error::kit_to_py)
+        })
+    }
+}
+
+/// Forges kit packages without the `sbx` CLI, through the socket alone: the
+/// base kit rebuilt from its published image, the mixins read from their
+/// directories.
+#[pyclass(frozen, module = "fastsandbox._native")]
+#[derive(Debug, Clone)]
+pub(crate) struct KitForge {
+    /// The client of the daemon the packages are forged for.
+    client: docker_sandbox::Client,
+}
+
+#[pymethods]
+impl KitForge {
+    /// A forge for the daemon of `client`.
+    #[new]
+    fn new(client: &Client) -> Self {
+        Self {
+            client: client.inner.clone(),
+        }
+    }
+
+    /// Forges the published kit `base`, e.g. `docker.io/sbx/shell:latest`,
+    /// with the mixins of the directories `mixins` and kit `args`: in memory,
+    /// or into the package directory `output` when given.
+    ///
+    /// # Errors
+    ///
+    /// Fails, before anything is sent, when a mixin directory cannot be read
+    /// or holds a descriptor the forge refuses.
+    #[pyo3(signature = (base, mixins=Vec::new(), args=BTreeMap::new(), output=None))]
+    fn forge<'py>(
+        &self,
+        py: Python<'py>,
+        base: String,
+        mixins: Vec<PathBuf>,
+        args: BTreeMap<String, String>,
+        output: Option<PathBuf>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let mut forge = docker_sandbox_kit::KitForge::new(self.client.clone()).with_base(base);
+        for dir in mixins {
+            forge = forge.with_mixin(Mixin::read(dir).map_err(crate::error::kit_to_py)?);
+        }
+        for (name, value) in args {
+            forge = forge.with_arg(name, value);
+        }
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let package = match output {
+                Some(dir) => forge.forge(dir).await,
+                None => forge.build().await,
+            };
+            package
                 .map(|inner| KitPackage { inner })
                 .map_err(crate::error::kit_to_py)
         })

@@ -13,11 +13,11 @@ are in [`fastsandbox.models`](models.md), the errors in
 | [Sandboxes](sandboxes.md) | `Sandboxes`, the collection, and `Sandbox`, the handle of one sandbox |
 | [Sessions and streams](sessions.md) | `Session`, `Interactive`, `Stream`, `SshTunnel` |
 | [Daemon services](services.md) | `Daemon`, `Images`, `Policy`, `Mcp`, `Events`, `Prompts` |
-| [Kits](kits.md) | `Kit`, `KitPackage`, `KitAgent`, `KitCompiler`, `KitCache` |
+| [Kits](kits.md) | `Kit`, `KitPackage`, `KitAgent`, `KitForge`, `KitCompiler`, `KitCache` |
 | [FastSandbox](applications.md) | `FastSandbox`, `run()`, `Task`, `Context`, `unique_name()` |
 | [Agents](agents.md) | `AGENTS`, `AgentProfile`, `AgentRunner`, `AgentRun`, `Credential` |
 | [Parameters](params.md) | `Depends`, `WorkspaceDir`, `Mounted`, `Uploaded`, `Network` |
 | [Models](models.md) | the Pydantic models of the daemon API |
 | [Exceptions](exceptions.md) | `SandboxError` and the errors derived from it |
 | [Types](types.md) | `Command`, `VersionPolicy`, `Lifespan`, `ProgressHandler` |
-| [Testing](testing.md) | `FakeDaemon`, `fake_package()` |
+| [Testing](testing.md) | `FakeDaemon`, `PublishedKit`, `fake_package()` |

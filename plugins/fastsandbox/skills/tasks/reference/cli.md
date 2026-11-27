@@ -39,12 +39,15 @@ description, and its inputs with their type and default.
 
 **`info`** connects (with `version_policy="warn"`) and prints the socket, the
 version and health of `sbx`, the API version of the daemon and the range this
-release supports, the number of sandboxes and the kit cache directory.
+release supports, the number of sandboxes and the kit cache directory, or
+`memory` when kits are forged and kept in memory.
 
-**`kits compile`** compiles a kit with the `sbx` CLI into the kit cache, as the
-first run of a task of that kit would, and prints where: `--mixin` adds a mixin
-kit (repeatable), `--arg NAME=VALUE` a kit argument (repeatable); a
-composition is cached apart from the plain kit.
+**`kits compile`** compiles a kit with the `sbx` CLI into the kit cache on
+disk and prints where: `--mixin` adds a mixin kit (repeatable), `--arg
+NAME=VALUE` a kit argument (repeatable); a composition is cached apart from the
+plain kit. Tasks forge their kits without the CLI; compiling ahead of time is
+for a kit only the CLI resolves, given to an application whose cache compiles
+with the CLI (`FastSandbox(kits=KitCache(sbx="sbx"))`).
 
 **`ssh-proxy`** holds the sandbox running and relays standard input and output
 to its SSH server through the socket: an OpenSSH `ProxyCommand`.
@@ -77,7 +80,7 @@ async def greet(ctx: Context, name: str, loud: bool = False) -> str:
 fastsandbox tasks                         # the tasks of app.py and their inputs
 fastsandbox run greet --name ada --loud   # the default application
 fastsandbox run app.py:app greet --input '{"name": "ada"}'
-fastsandbox kits compile shell            # compile the kit ahead of the first run
+fastsandbox kits compile ./kits/my-kit    # compile a local kit with the sbx CLI
 fastsandbox info                          # the daemon, its version, the socket
 ssh -o ProxyCommand="fastsandbox ssh-proxy my-sandbox" agent@my-sandbox
 ```

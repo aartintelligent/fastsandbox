@@ -33,11 +33,11 @@ Client.create(
 | `creation.created` | the `Created` answer once created (`id`, `name`, `agent`, `status`, `workspace`, `mcp`), else `None` |
 | `creation.name` | the name it creates |
 
-The kit is compiled on first use (see [kits](kits.md)). A sandbox runs right
-after its creation. Errors: `ConflictError` for a name in use,
-`InvalidInputError` for a request the daemon refuses (an unknown governance
-`profile`…), `ValueError` when `kit=None` and no `request`, `KitCompileError`
-when the kit cannot be compiled.
+The kit is forged without the `sbx` CLI on first use (see [kits](kits.md)). A
+sandbox runs right after its creation. Errors: `ConflictError` for a name in
+use, `InvalidInputError` for a request the daemon refuses (an unknown
+governance `profile`…), `ValueError` when `kit=None` and no `request`,
+`KitForgeError` or `InvalidKitError` when the kit cannot be forged.
 
 `Workspace(dir: str, read_only: bool = False, target: str | None = None)`
 mounts a further host directory or file (at `target`, else at its own path).

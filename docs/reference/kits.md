@@ -6,6 +6,8 @@
 
 ::: fastsandbox.KitAgent
 
+::: fastsandbox.KitForge
+
 ::: fastsandbox.KitCompiler
 
 ::: fastsandbox.KitCache
