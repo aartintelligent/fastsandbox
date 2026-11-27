@@ -67,3 +67,12 @@ async def test_settings_the_fake_does_not_know_are_not_found(daemon: FakeDaemon)
     status = await reader.readline()
     writer.close()
     assert b" 404 " in status
+
+
+async def test_images_the_fake_does_not_hold_are_not_exported(daemon: FakeDaemon) -> None:
+    reader, writer = await asyncio.open_unix_connection(daemon.socket_path)
+    writer.write(b"GET /docker/images/export?name=docker.io/sbx/none HTTP/1.1\r\nHost: d\r\n\r\n")
+    await writer.drain()
+    status = await reader.readline()
+    writer.close()
+    assert b" 404 " in status

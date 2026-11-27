@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -71,6 +72,26 @@ def test_a_cache_that_compiles_with_the_cli_keeps_its_packages_on_disk(
     cache = KitCache(sbx="sbx")
     assert cache.directory == default_cache_dir()
     assert "sbx='sbx'" in repr(cache)
+
+
+async def test_a_cache_given_the_cli_compiles_into_its_directory(
+    client: fastsandbox.Client, compiled: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    kit = Kit(base="shell", mixins=("./kits/tools",), args={"model": "fast"})
+    cache = KitCache(tmp_path, sbx="/opt/sbx", timeout=60)
+    package = await cache.package(client, kit)
+    assert package.dir == tmp_path / kit.cache_key
+    assert await cache.package(client, kit) is package
+    assert compiled == [
+        {
+            "sbx": "/opt/sbx",
+            "timeout": 60,
+            "base": "shell",
+            "output": tmp_path / kit.cache_key,
+            "mixins": ("./kits/tools",),
+            "args": {"model": "fast"},
+        }
+    ]
 
 
 async def test_clients_share_the_cache_of_the_process(client: fastsandbox.Client) -> None:

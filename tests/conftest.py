@@ -1,9 +1,11 @@
-"""Fixtures: a fake daemon, a client connected to it, kit packages, and an
-environment where code written for the real daemon runs against the fake one."""
+"""Fixtures: a fake daemon, a client connected to it, kit packages, a stand-in for
+the `sbx` CLI, and an environment where code written for the real daemon runs
+against the fake one."""
 
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
@@ -55,6 +57,51 @@ def make_app(daemon: FakeDaemon, package: fastsandbox.KitPackage) -> Callable[..
         return FastSandbox("ci", socket=str(daemon.socket_path), kit=package, **options)
 
     return build
+
+
+@pytest.fixture
+def compiled(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    """Stands in for the `sbx` CLI: `KitCompiler` writes a `fake_package()`.
+
+    Each compilation is recorded, with the program, the deadline and the
+    composition it was given.
+    """
+    calls: list[dict[str, Any]] = []
+
+    class Compiler:
+        def __init__(
+            self,
+            client: fastsandbox.Client,
+            *,
+            sbx: str | os.PathLike[str] = "sbx",
+            work_dir: str | os.PathLike[str] | None = None,
+            timeout: float | None = None,
+        ) -> None:
+            self.sbx = os.fspath(sbx)
+            self.timeout = timeout
+
+        async def compile(
+            self,
+            base: str,
+            output: str | os.PathLike[str],
+            *,
+            mixins: tuple[str, ...] | list[str] = (),
+            args: dict[str, str] | None = None,
+        ) -> fastsandbox.KitPackage:
+            calls.append(
+                {
+                    "sbx": self.sbx,
+                    "timeout": self.timeout,
+                    "base": base,
+                    "output": Path(output),
+                    "mixins": tuple(mixins),
+                    "args": dict(args or {}),
+                }
+            )
+            return fake_package(output)
+
+    monkeypatch.setattr("fastsandbox.kits.KitCompiler", Compiler)
+    return calls
 
 
 @pytest.fixture
