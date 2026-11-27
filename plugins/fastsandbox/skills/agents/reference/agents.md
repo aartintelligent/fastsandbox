@@ -91,8 +91,9 @@ without asking: the sandbox is what makes that safe.
 
 `kit=Kit(base="claude", args={...})` composes the agent's kit with kit
 arguments (`sbx create --kit-arg`), or with `mixins=(...)`. The `claude` kit
-declares `model` and `reasoningEffort`. Each composition is compiled once and
-cached apart from the plain kit.
+declares `model` and `reasoningEffort`, whose values the forge checks as the
+CLI does (`InvalidKitError`). Each composition is forged once and kept apart
+from the plain kit.
 
 ## Example
 
@@ -126,8 +127,7 @@ async def explain(ctx: Context, repo: Annotated[Path, WorkspaceDir(clone=True)])
 
 ```sh
 export ANTHROPIC_API_KEY=sk-ant-...
-fastsandbox kits compile claude
-fastsandbox run app.py explain --repo .
+fastsandbox run app.py explain --repo .   # the claude kit is forged on the first run
 ```
 
 ## Gotchas

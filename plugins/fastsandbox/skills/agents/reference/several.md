@@ -96,8 +96,8 @@ python app.py . "the parser drops the last line"
 
 ## Gotchas
 
-- Each agent needs its own key in the caller's environment, and its kit
-  compiled once (`fastsandbox kits compile claude`, `... codex`).
+- Each agent needs its own key in the caller's environment; its kit is forged
+  on its first run, once per process.
 - Many runs of one agent follow the same pattern:
   `await asyncio.gather(*(review(repo=r) for r in repos))`, bounded by
   `max_concurrency` so the machine does not run them all at once.

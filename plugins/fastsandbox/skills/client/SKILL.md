@@ -1,6 +1,6 @@
 ---
 name: client
-description: The low-level async client of fastsandbox, the Python client of the Docker Sandboxes (sbx) daemon socket. Load before writing or fixing code that calls `fastsandbox.connect()` or uses `Client`, `Sandbox`, `client.create()`, `sandbox.running()`, `exec()`, `attach()`, file transfers (`write_file`, `upload_dir`, archives), ports (`PortBinding`), the network policy (`client.policy`, `RuleChange`, `allow_hosts`), credentials (`CredentialsUpdate`, `CustomSecret`), images, the event and prompt streams, SSH tunnels, the MCP gateway, daemon settings, kit packages (`Kit`, `KitCache`, `KitPackage`), or that catches the errors of `fastsandbox.exceptions`. For tasks declared with `FastSandbox`, load the tasks skill; for coding agents, the agents skill.
+description: The low-level async client of fastsandbox, the Python client of the Docker Sandboxes (sbx) daemon socket. Load before writing or fixing code that calls `fastsandbox.connect()` or uses `Client`, `Sandbox`, `client.create()`, `sandbox.running()`, `exec()`, `attach()`, file transfers (`write_file`, `upload_dir`, archives), ports (`PortBinding`), the network policy (`client.policy`, `RuleChange`, `allow_hosts`), credentials (`CredentialsUpdate`, `CustomSecret`), images, the event and prompt streams, SSH tunnels, the MCP gateway, daemon settings, kit packages (`Kit`, `KitCache`, `KitForge`, `KitPackage`), or that catches the errors of `fastsandbox.exceptions`. For tasks declared with `FastSandbox`, load the tasks skill; for coding agents, the agents skill.
 ---
 
 # The fastsandbox client
@@ -47,9 +47,10 @@ if __name__ == "__main__":
 - **One connection per request.** A `Client` holds none: connect once, pass the
   client around. Handles (`client.sandbox(name)`, `client.policy`…) are cheap
   and check nothing until used.
-- **The first sandbox of a kit compiles the kit** with the `sbx` CLI (on
-  `PATH`), which can take minutes for an agent kit; later ones come from the
-  kit cache. `fastsandbox kits compile KIT` does it ahead of time.
+- **The first sandbox of a kit forges the kit** without the `sbx` CLI: the
+  daemon pulls the image of its base kit once, then it takes seconds, and the
+  package is kept in memory. A kit only the CLI resolves (a local kit, a mixin
+  given by reference) needs `KitCache(sbx="sbx")`.
 - **Network rules add to the daemon policy**, which may allow everything:
   `sandbox.allow_hosts()` does not block the rest, `deny_hosts()` does block.
   Rules of a sandbox go with it; a global rule (`client.policy.apply_all()`
@@ -107,7 +108,7 @@ if __name__ == "__main__":
 - [reference/ssh.md](reference/ssh.md): before opening an SSH tunnel or configuring the SSH client.
 - [reference/mcp.md](reference/mcp.md): before loading MCP servers into a sandbox or checking a registration.
 - [reference/daemon.md](reference/daemon.md): before reading or changing daemon settings, log levels or disk usage.
-- [reference/kits.md](reference/kits.md): before compiling kits, composing mixins or adding kits to a running sandbox.
+- [reference/kits.md](reference/kits.md): before forging or compiling kits, composing mixins or adding kits to a running sandbox.
 - [reference/errors.md](reference/errors.md): before catching errors or deciding on a retry.
 
 Full documentation: https://aartintelligent.github.io/fastsandbox/client/

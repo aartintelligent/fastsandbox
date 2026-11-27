@@ -1,7 +1,7 @@
 """Running a coding agent unattended: a task, a prompt, and a check that does not trust the agent.
 
 `main` is the whole flow of the `agent-*-automation` examples, the flow of a
-runner: compile the kit once, create a sandbox, give it the credential found
+runner: forge the kit without the `sbx` CLI, create a sandbox, give it the credential found
 in the environment (else the secret stored with `sbx secret set` applies),
 mount the task written on the host as its workspace, run the agent in its
 non-interactive mode with a deadline, then check the result with the
@@ -105,7 +105,7 @@ async def run(profile: AgentProfile, prompt: str) -> None:
     The sandbox is removed in every case; the task stays on the host.
 
     Raises:
-        KitCompileError: When the kit cannot be compiled.
+        KitForgeError: When the kit cannot be forged.
         SandboxTimeoutError: When the agent exceeds its deadline (an agent
             without a credential cannot log in).
         ExampleError: When the kit declares no agent, or when the tests of the

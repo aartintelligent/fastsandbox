@@ -55,8 +55,8 @@ the proxy of the sandbox injects it, the agent sees a placeholder.
 - **Write prompts the run can be checked against**: what to do, the command
   that checks it, what to leave behind (commits on the clone, a file at a
   given path).
-- **First run of a kit compiles it** with the `sbx` CLI (minutes for an agent
-  kit): suggest `fastsandbox kits compile <kit>` ahead of time.
+- **First run of a kit forges it** without the `sbx` CLI: the daemon pulls the
+  image of the agent kit once, then it takes seconds.
 
 ## Decide
 

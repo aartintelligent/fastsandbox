@@ -22,8 +22,10 @@ __all__ = [
     "DaemonUnavailableError",
     "HostFileError",
     "InvalidInputError",
+    "InvalidKitError",
     "InvalidRequestError",
     "KitCompileError",
+    "KitForgeError",
     "KitPackageError",
     "NotFoundError",
     "OperationFailedError",
@@ -177,6 +179,32 @@ class KitPackageError(SandboxError):
 
 class KitCompileError(SandboxError):
     """A kit could not be compiled with the `sbx` CLI."""
+
+
+class InvalidKitError(SandboxError):
+    """A kit the forge refuses, before anything is sent to the daemon.
+
+    A descriptor it cannot take (a `spec.yaml` that is not in the JSON subset of YAML, a
+    capability a mixin may not declare), or a kit argument the kit does not declare or
+    whose value it refuses.
+
+    Attributes:
+        kit: The kit refused, e.g. `docker.io/sbx/claude:latest` or a mixin.
+        reason: Why it is refused.
+    """
+
+    kit: str | None = None
+    reason: str | None = None
+
+
+class KitForgeError(SandboxError):
+    """A kit could not be forged without the `sbx` CLI.
+
+    The kit policy of the daemon forbids it (signed kits required, local kits forbidden, a
+    source not allowed), or the kit is one only the CLI resolves: the directory of a local
+    base kit, or a mixin given by reference. Give the kit cache the CLI
+    (`KitCache(sbx="sbx")`) to compile such a kit.
+    """
 
 
 class TaskError(SandboxError):

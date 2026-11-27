@@ -8,7 +8,7 @@ import fastsandbox
 from fastsandbox.models import (
     PortBinding,
 )
-from fastsandbox.testing import FakeDaemon, Request, Response
+from fastsandbox.testing import FakeDaemon, PublishedKit, Request, Response, repository
 
 
 async def test_routes_can_be_replaced(
@@ -39,3 +39,31 @@ async def test_a_client_hanging_up_mid_request_leaves_the_daemon_serving(
     client = await fastsandbox.connect(daemon.socket_path)
     assert client.health.status
     assert daemon.requests_to("POST", "/sandbox") == []
+
+
+def test_references_are_normalized_as_docker_does() -> None:
+    assert repository("shell") == "docker.io/library/shell"
+    assert repository("sbx/shell:latest") == "docker.io/sbx/shell"
+    assert repository("docker.io/sbx/claude@sha256:abc") == "docker.io/sbx/claude"
+    assert repository("localhost:5000/kits/tools:1") == "localhost:5000/kits/tools"
+
+
+async def test_a_published_kit_of_ones_own_is_forged(
+    client: fastsandbox.Client, daemon: FakeDaemon
+) -> None:
+    descriptor = {"schemaVersion": "3", "kind": "workload", "displayName": "Tools"}
+    daemon.kits["registry.example.com/acme/tools"] = PublishedKit(descriptor, entrypoint=["tools"])
+    # The forge only takes kits from the sources the daemon allows.
+    daemon.settings["kit.allowedSources"] = ["docker.io/", "registry.example.com/"]
+    package = await fastsandbox.KitForge(client).forge("registry.example.com/acme/tools:1")
+    assert package.agent is not None
+    assert package.agent.binary == "tools"
+
+
+async def test_settings_the_fake_does_not_know_are_not_found(daemon: FakeDaemon) -> None:
+    reader, writer = await asyncio.open_unix_connection(daemon.socket_path)
+    writer.write(b"GET /daemon/settings/kit.unknown HTTP/1.1\r\nHost: d\r\n\r\n")
+    await writer.drain()
+    status = await reader.readline()
+    writer.close()
+    assert b" 404 " in status

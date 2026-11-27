@@ -1,10 +1,11 @@
 """A mixin kit added to running shell sandboxes: installed in place, or by a container swap.
 
 The mixin of the examples (`examples/kits/example-mixin/spec.yaml`) writes a
-marker file when it is installed. It is compiled once with the `shell` base
-kit, as a package of both, by the `sbx` CLI; each sandbox is created from the
-`shell` kit alone, given some work in progress, then gets the mixin from that
-package:
+marker file when it is installed. Its `spec.yaml` is written in YAML, which
+only the `sbx` CLI reads: the example asks the CLI (`sbx=True`), which compiles
+it once with the `shell` base kit, as a package of both. Each sandbox is
+created from the `shell` kit alone, given some work in progress, then gets the
+mixin from that package:
 
 - **in place** (`KitPackage.install_into`): the install command runs in the
   running container. Fast, but the kit list of the sandbox stays as it was,
@@ -70,8 +71,8 @@ class State:
 async def main() -> None:
     """Runs the example."""
     client = await common.connect()
-    base = await kit.package(client, "shell")
-    mixed = await kit.package(client, "shell", mixins=[MIXIN])
+    base = await kit.package(client, "shell", sbx=True)
+    mixed = await kit.package(client, "shell", mixins=[MIXIN], sbx=True)
     await in_place(client, base, mixed)
     await by_swap(client, base, mixed)
     await by_hand(client, base, mixed)

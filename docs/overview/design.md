@@ -53,9 +53,11 @@ otherwise. See [The API version](../client/index.md#the-api-version).
 `async with sandbox.running()`, and a task holds a session for its whole run.
 See [Sessions](../client/sandboxes.md#sessions).
 
-**Kits compiled once.** The daemon cannot resolve a kit by itself: the `sbx`
-CLI does. A kit package captures what the CLI sends for a kit, once, and every
-later sandbox of that kit is created through the socket alone.
+**Kits forged without the CLI.** The daemon cannot resolve a kit by itself: a
+kit package holds what the `sbx` CLI would send for a kit, and every sandbox of
+that kit is created from it through the socket alone. fastsandbox forges the
+package itself, the base kit rebuilt from its published image, and keeps it in
+memory; the CLI compiles only the kits that it alone resolves, when asked.
 See [Kits](../client/kits.md).
 
 **The task runs on the host.** The function of a task runs in the process of

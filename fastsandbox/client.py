@@ -95,9 +95,9 @@ class Client:
 
     @property
     def kits(self) -> KitCache:
-        """The kit cache `create` compiles kits into."""
+        """The kit cache `create` takes packages from: the one of the process by default."""
         if self._kits is None:
-            self._kits = KitCache()
+            self._kits = KitCache.default()
         return self._kits
 
     @property
@@ -142,8 +142,8 @@ class Client:
     async def package(self, kit: Kit | KitPackage | str) -> KitPackage:
         """The package of `kit`.
 
-        A kit is compiled with the `sbx` CLI on first use (see `KitCache`); a package is
-        returned as is.
+        A kit is forged without the `sbx` CLI on first use, or compiled by it for a cache
+        given the CLI (see `KitCache`); a package is returned as is.
         """
         if isinstance(kit, KitPackage):
             return kit

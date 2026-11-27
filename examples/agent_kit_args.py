@@ -1,13 +1,14 @@
-"""Arguments a kit declares, chosen when it is compiled: the model and the effort of `claude`.
+"""Arguments a kit declares, chosen when it is forged: the model and the effort of `claude`.
 
 A kit declares its arguments with a default, a description and a pattern or a
 list of values; the `claude` kit declares `model` and `reasoningEffort`. The
-`sbx` CLI resolves their values into the kit artifact when it compiles the kit,
-as `sbx create --kit-arg model=…` does (`Kit(args=…)`, here through
+forge checks their values as the `sbx` CLI does and resolves them into the kit
+artifact, as `sbx create --kit-arg model=…` does (`Kit(args=…)`, here through
 `common.kit.package`): the sandbox gets them as environment variables, and the
-install command of the kit writes them into `~/.claude/settings.json`. A
-program that offers a choice of model compiles one package per choice, once,
-and creates its sandboxes from it; the kit cache keeps each composition apart.
+install command of the kit writes them into `~/.claude/settings.json`. A value
+the kit refuses is an `InvalidKitError` before anything is created. A program
+that offers a choice of model makes one package per choice and creates its
+sandboxes from it; the kit cache keeps each composition apart.
 
 The example creates the sandbox and reads both, without starting Claude Code:
 no credential is used.
@@ -38,8 +39,8 @@ SETTINGS = "/home/agent/.claude/settings.json"
 async def main() -> None:
     """Runs the example."""
     client = await common.connect()
-    # Kit arguments are part of the composition: this package is compiled and
-    # cached apart from the plain `claude` kit.
+    # Kit arguments are part of the composition: this package is forged and
+    # kept apart from the plain `claude` kit.
     package = await kit.package(client, "claude", args={"model": MODEL, "reasoningEffort": EFFORT})
     async with (
         client.create(fastsandbox.unique_name("example-kit-args"), kit=package) as sandbox,

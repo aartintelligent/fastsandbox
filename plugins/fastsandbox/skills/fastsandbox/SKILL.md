@@ -34,8 +34,9 @@ client `Sandbox`, so the `client` skill applies inside tasks too.
 
 - **Install order**: Docker Sandboxes, then `uv add fastsandbox` (Python 3.12 or
   newer; `uv python install 3.14` gets one), then `fastsandbox info` to check the
-  connection. `fastsandbox kits compile <kit>` compiles a kit ahead of its
-  first use, which otherwise takes minutes.
+  connection. Kits are forged without the `sbx` CLI on their first use, in
+  seconds once the daemon holds the image of the base kit; only a kit the CLI
+  alone resolves needs `KitCache(sbx="sbx")`.
 - **A sandbox runs while a session is held.** With the client, work inside
   `async with client.create(...) as sandbox, sandbox.running():`; the outer
   block deletes the sandbox, the inner one keeps it running. A task does both

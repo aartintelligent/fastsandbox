@@ -1,6 +1,6 @@
 ---
 name: troubleshooting
-description: Diagnosing and fixing fastsandbox programs that fail or misbehave - the daemon of Docker Sandboxes unreachable or of an unsupported version, kits slow or failing to compile, agent credentials and network, HTTP 403 from the proxy, timeouts, failed commands, validation errors, files of the host changed or work lost, sandboxes that stop, tests answered 501 by the fake daemon, and how to look inside a kept sandbox. Load when an error of fastsandbox (DaemonUnavailableError, UnsupportedVersionError, TaskError, SandboxTimeoutError, CommandFailedError…) or an unexpected behavior shows up.
+description: Diagnosing and fixing fastsandbox programs that fail or misbehave - the daemon of Docker Sandboxes unreachable or of an unsupported version, kits slow or failing to forge or compile, agent credentials and network, HTTP 403 from the proxy, timeouts, failed commands, validation errors, files of the host changed or work lost, sandboxes that stop, tests answered 501 by the fake daemon, and how to look inside a kept sandbox. Load when an error of fastsandbox (DaemonUnavailableError, UnsupportedVersionError, TaskError, SandboxTimeoutError, CommandFailedError…) or an unexpected behavior shows up.
 ---
 
 # Troubleshooting
@@ -24,9 +24,11 @@ Full documentation: https://aartintelligent.github.io/fastsandbox/guides/trouble
 |---|---|---|
 | `DaemonUnavailableError` (a `ConnectionError`, `path` = the socket tried) | Docker Sandboxes is not installed, its daemon does not run for this user, or the socket is elsewhere | Install Docker Sandboxes (https://aartintelligent.github.io/fastsandbox/get-started/installation/), check `sbx version` as the same user; `DOCKER_SANDBOXES_API` names another socket |
 | `UnsupportedVersionError` (`found`, `supported`) | the daemon runs an API version this release was not checked against | upgrade fastsandbox; to go on at your own risk, `client = await fastsandbox.connect(version_policy="warn")` and `FastSandbox(client=client)` |
-| the first run of a kit waits for minutes | the kit is compiled with the `sbx` CLI on its first use | `fastsandbox kits compile <kit>` ahead of time; later runs reuse the cached package |
-| `KitCompileError` | the `sbx` CLI could not compile the kit, or is not on `PATH` | install the `sbx` CLI with Docker Sandboxes; run the compile by hand to see its output |
-| `KitPackageError` (`path`) | a kit package directory is missing or invalid | delete it from the kit cache (`fastsandbox info` prints where) and compile again |
+| the first run of a kit waits for minutes | the daemon pulls the image of the base kit, once; or a cache given the `sbx` CLI compiles the kit | wait for the pull, which later runs skip; compile a kit only the CLI resolves ahead of time, `fastsandbox kits compile <kit>` |
+| `KitForgeError` | the kit is one only the `sbx` CLI resolves (a local base kit, a mixin given by reference), or the kit policy of the daemon forbids forging | give the cache the CLI, `KitCache(sbx="sbx")`; a mixin forges once its `spec.yaml` is in the JSON subset of YAML |
+| `InvalidKitError` (`kit`, `reason`) | the forge refuses a kit argument, its value, or a mixin descriptor | read `reason`: the values and pattern the kit declares, or what a mixin may not declare |
+| `KitCompileError` | the `sbx` CLI, given to the cache, could not compile the kit, or is not on `PATH` | install the `sbx` CLI with Docker Sandboxes; run the compile by hand to see its output |
+| `KitPackageError` (`path`) | a kit package directory is missing or invalid | delete it from the kit cache (`fastsandbox info` prints where) and make it again |
 
 ## Declaring and running tasks
 
@@ -65,7 +67,7 @@ Full documentation: https://aartintelligent.github.io/fastsandbox/guides/trouble
 | Symptom | Cause | Fix |
 |---|---|---|
 | HTTP 501 from the fake daemon | attach, agent runs and SSH upgrade the connection, which `FakeDaemon` does not do | test declarations and commands against the fake, agent runs against the real daemon (see the `testing` skill) |
-| a test compiles kits or needs `sbx` | the kit cache has no package for the kit | write one with `fake_package(cache / Kit(base="shell").cache_key)` and set `FASTSANDBOX_KIT_CACHE`, or pass `kit=fake_package(...)` |
+| a test cannot forge a kit (`pull access denied`) | the fake daemon serves only the published `shell` and `claude` kits | add the kit to `daemon.kits` as a `PublishedKit`, write a package with `fake_package(cache / Kit(base="shell").cache_key)` and set `FASTSANDBOX_KIT_CACHE`, or pass `kit=fake_package(...)` |
 | `NotFoundError` (404) in a test | a route the fake does not serve | add it with `@daemon.route(method, pattern)` returning a `Response` |
 
 ## Looking inside a sandbox

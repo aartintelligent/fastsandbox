@@ -1,6 +1,6 @@
 """Claude Code in a throw-away sandbox, through the socket alone.
 
-The kit of the agent is compiled once with the `sbx` CLI, a sandbox is created
+The kit of the agent is forged without the `sbx` CLI, a sandbox is created
 from it, the credentials found in the environment are given to that sandbox
 only, and the terminal is plugged into the agent session, opened as `sbx run`
 opens it. The sandbox is deleted when the session ends.

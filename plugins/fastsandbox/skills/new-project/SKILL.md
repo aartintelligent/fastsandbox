@@ -74,8 +74,8 @@ Fix the code until they pass.
 
 ## 5. Hand over
 
-Tell the user how to run the project for real, from its README: compile the
-kit once (`uv run fastsandbox kits compile <kit>`), export the key, run the
+Tell the user how to run the project for real, from its README: export the
+key (the kit is forged without the `sbx` CLI on the first run), run the
 task with `uv run fastsandbox run ...` or `uv run python probe.py`. Do not run
 it yourself without asking: it creates real sandboxes on their daemon. Suggest
 the `fastsandbox:sandbox-reviewer` agent once they change the code.

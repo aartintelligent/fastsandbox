@@ -1,7 +1,7 @@
 """Running a coding agent in a throw-away sandbox, with or without an MCP server.
 
-`main` is the whole flow of the `agent-*` examples: compile the kit of the
-agent once, create a sandbox from it, give it the credentials found in the
+`main` is the whole flow of the `agent-*` examples: forge the kit of the
+agent without the `sbx` CLI, create a sandbox from it, give it the credentials found in the
 environment, load the MCP server of the `-mcp` variant and check it from
 inside the sandbox, and plug the terminal into the agent session, opened with
 what `sbx run` passes from the host (`common.host`).
@@ -63,7 +63,7 @@ async def run(profile: AgentProfile, launch: Launch, *, with_mcp: bool = False) 
     set, are removed in every case.
 
     Raises:
-        KitCompileError: When the kit cannot be compiled.
+        KitForgeError: When the kit cannot be forged.
         SandboxError: When the sandbox cannot be created or started, or the
             session breaks.
     """

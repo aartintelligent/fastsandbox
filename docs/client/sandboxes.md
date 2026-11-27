@@ -8,7 +8,8 @@ saving it as a template.
 ## Creating a sandbox
 
 [`client.create()`][fastsandbox.Client.create] creates a sandbox from a kit,
-`shell` by default, compiled on first use (see [Kits](kits.md)). It returns a
+`shell` by default, forged without the `sbx` CLI on first use (see
+[Kits](kits.md)). It returns a
 [`Creation`][fastsandbox.Creation], used in one of two ways:
 
 - **awaited**, it gives the [`Sandbox`][fastsandbox.Sandbox], which stays until

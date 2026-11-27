@@ -17,9 +17,10 @@ flowchart LR
 
 - **Docker Sandboxes**, installed and its daemon running for the current user:
   `sbx version` answers. Linux or macOS.
-- **The `sbx` CLI on `PATH`**, installed with Docker Sandboxes: fastsandbox
-  uses it to compile a [kit](../client/kits.md) on its first use; later
-  sandboxes of the same kit are created through the socket alone.
+- fastsandbox talks to the daemon through its socket alone: it forges the
+  [kits](../client/kits.md) it needs without the `sbx` CLI. The CLI, installed
+  with Docker Sandboxes, is used only for a kit that it alone resolves, when
+  asked (`KitCache(sbx="sbx")`).
 - **Python 3.12** or newer (3.12, 3.13 and 3.14 are tested);
   `uv python install 3.14` installs one.
 - To build from source: a **Rust toolchain** (1.88 or newer) and
@@ -93,7 +94,7 @@ socket       /home/me/.local/state/sandboxes/sandboxes/sandboxd/sandboxd.sock
 sbx          v0.54.1 (healthy)
 api          0.52.0 (supported 0.52.0 to 0.53.0)
 sandboxes    0
-kit cache    /home/me/.cache/fastsandbox/kits
+kit cache    memory, kits forged without the sbx CLI
 ```
 
 - **socket**: the socket of the daemon, taken from the `DOCKER_SANDBOXES_API`
@@ -104,21 +105,20 @@ kit cache    /home/me/.cache/fastsandbox/kits
   ([`SUPPORTED_API`][fastsandbox.SUPPORTED_API]). `connect()` refuses a daemon
   outside that range unless told otherwise; see
   [Connecting](../client/index.md).
-- **kit cache**: where compiled kit packages are kept:
-  `$FASTSANDBOX_KIT_CACHE`, else `$XDG_CACHE_HOME/fastsandbox/kits`, else
-  `~/.cache/fastsandbox/kits`.
+- **kit cache**: where kit packages are kept: the memory of the process by
+  default, or the directory `$FASTSANDBOX_KIT_CACHE` names.
 
-## Compile the kits ahead of time
+## The first sandbox of a kit
 
-The first sandbox of a kit compiles it with the `sbx` CLI, which can take a few
-minutes for an agent kit. To pay that cost once, ahead of a run:
+The first sandbox of a kit forges it: the daemon pulls the published image of
+the base kit, once, then the forge rebuilds the kit from it in a few seconds.
+A kit that only the `sbx` CLI resolves (the directory of a local kit, a mixin
+given by reference) is compiled by the CLI when asked, which can take a few
+minutes for an agent kit; `fastsandbox kits compile` does it ahead of a run:
 
 ```sh
-fastsandbox kits compile shell
-fastsandbox kits compile claude
+fastsandbox kits compile ./kits/my-local-kit
 ```
-
-The package is compiled again when the daemon runs another `sbx` version.
 
 ## Next
 

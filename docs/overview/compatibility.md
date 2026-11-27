@@ -10,7 +10,7 @@ daemon, `sandboxd`, and does nothing without it.
 |---|---|
 | Platforms | Linux and macOS, where Docker Sandboxes runs |
 | The daemon | Installed and running for the current user: `sbx version` answers |
-| The `sbx` CLI | On `PATH`, to compile a [kit](../client/kits.md) on its first use |
+| The `sbx` CLI | Only to compile a [kit](../client/kits.md) the forge cannot make, when asked |
 | The socket API | The range of versions in [`SUPPORTED_API`][fastsandbox.SUPPORTED_API] |
 
 The `sandboxd` socket API is private and changes with `sbx` releases. Each

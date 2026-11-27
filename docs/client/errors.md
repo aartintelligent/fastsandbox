@@ -40,6 +40,8 @@ working.
 | [`CommandFailedError`][fastsandbox.exceptions.CommandFailedError] | a checked command exited with a non-zero code (see [Commands](commands.md)) | `exit_code`, `stdout`, `stderr` |
 | [`KitPackageError`][fastsandbox.exceptions.KitPackageError] | a kit package directory is missing or invalid | `path` |
 | [`KitCompileError`][fastsandbox.exceptions.KitCompileError] | the `sbx` CLI could not compile a kit | |
+| [`InvalidKitError`][fastsandbox.exceptions.InvalidKitError] | the forge refuses a kit: a descriptor it cannot take, an argument the kit does not declare or a value it refuses | `kit`, `reason` |
+| [`KitForgeError`][fastsandbox.exceptions.KitForgeError] | a kit could not be forged without the `sbx` CLI: one only the CLI resolves, or the kit policy of the daemon forbids it | |
 | [`TaskError`][fastsandbox.exceptions.TaskError] | a task of a FastSandbox application failed or is misdeclared | |
 
 `NotFoundError`, `ConflictError` and `InvalidInputError` derive from

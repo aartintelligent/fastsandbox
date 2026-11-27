@@ -38,8 +38,8 @@ function under a decorator.
 
 fastsandbox is not a product of Docker, Inc., and not a replacement for `sbx`:
 Docker Sandboxes must be installed on the machine, its daemon running, since
-fastsandbox connects to its socket; and the CLI compiles the
-[kits](../client/kits.md) on their first use. It is not a sandbox runtime
+fastsandbox connects to its socket and forges the [kits](../client/kits.md)
+through it. It is not a sandbox runtime
 either: the isolation is that of Docker Sandboxes, and fastsandbox decides
 only what crosses it (see [Security](../guides/security.md)). Nor is it a
 client of the Docker Engine: containers and images outside Docker Sandboxes

@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Testing code that uses fastsandbox without Docker Sandboxes - `FakeDaemon` (a fake sandboxd on a Unix socket, `on_exec`, `route`, `requests_to`, `sandboxes`, `rules`, `files`, `requests`), `fake_package` kit packages that need no sbx CLI, `Request` and `Response`, pointing a FastSandbox application or a client at the fake, testing agent tasks, and what the fake cannot do. Load before writing or fixing tests (pytest, pytest-asyncio) for tasks, agent tasks or client code, or a CI that has no daemon.
+description: Testing code that uses fastsandbox without Docker Sandboxes - `FakeDaemon` (a fake sandboxd on a Unix socket, `on_exec`, `route`, `requests_to`, `sandboxes`, `rules`, `files`, `requests`), the published kits it serves so that kits are forged against it (`kits`, `PublishedKit`), `fake_package` kit packages that need no sbx CLI, `Request` and `Response`, pointing a FastSandbox application or a client at the fake, testing agent tasks, and what the fake cannot do. Load before writing or fixing tests (pytest, pytest-asyncio) for tasks, agent tasks or client code, or a CI that has no daemon.
 ---
 
 # Testing without a daemon
@@ -91,10 +91,13 @@ Two ways:
 2. **Through the environment**, for an application declared as in production
    (`FastSandbox("ci")`, kits of `sbx`): set `DOCKER_SANDBOXES_API`
    (`fastsandbox.SOCKET_ENV`) to the socket of the fake, and
-   `FASTSANDBOX_KIT_CACHE` to a directory where `fake_package` wrote a package
-   under the cache key of each kit used, `Kit(base="shell").cache_key`. The
-   default `sbx_version` of `fake_package` matches the version the fake
-   reports, so the cache uses the package instead of compiling the kit.
+   either let the kits be forged against the fake, which serves the published
+   `shell` and `claude` kits (`daemon.kits`, a `PublishedKit` each, extended
+   with a kit of one's own), or set `FASTSANDBOX_KIT_CACHE` to a directory
+   where `fake_package` wrote a package under the cache key of each kit used,
+   `Kit(base="shell").cache_key`. The default `sbx_version` of `fake_package`
+   matches the version the fake reports, so the cache uses the package as it
+   is.
 
 ## A complete test
 

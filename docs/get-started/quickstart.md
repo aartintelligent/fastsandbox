@@ -53,20 +53,7 @@ release supports. An error here means Docker Sandboxes is not installed, its
 daemon is not running for your user, or it runs a version fastsandbox was not
 checked against: see [Troubleshooting](../guides/troubleshooting.md).
 
-## 3. Compile the kit of the agent
-
-A sandbox is created from a kit; the kit of Claude Code is `claude`. The first
-sandbox of a kit compiles it with the `sbx` CLI, which can take a few minutes.
-Pay that cost now, once:
-
-```sh
-fastsandbox kits compile claude
-```
-
-The package is cached, and every later sandbox of the kit is created in
-seconds.
-
-## 4. Write the agent task
+## 3. Write the agent task
 
 Create `agent.py` at the root of the repository the agent should work on:
 
@@ -87,7 +74,7 @@ Create `agent.py` at the root of the repository the agent should work on:
 - **Line 19**: the task reads the file the agent wrote, in the clone, and
   returns it.
 
-## 5. Run it
+## 4. Run it
 
 From the root of the repository:
 
@@ -108,6 +95,7 @@ sequenceDiagram
     participant S as Sandbox
     Y->>F: fastsandbox run agent.py explain --repo .
     F->>F: validate the inputs
+    F->>F: forge the claude kit, without the sbx CLI
     F->>S: create from the claude kit, with a clone of the repository
     F->>S: push the API key, for this sandbox only
     F->>S: run Claude Code on the prompt
@@ -124,11 +112,10 @@ whatever happens, an error or a timeout included.
 ## Try another agent
 
 The task reads a file rather than the output of the agent, so it works with any
-agent: change `"claude"` to `"codex"`, compile its kit, export its key, and run
-again.
+agent: change `"claude"` to `"codex"`, export its key, and run again: its kit
+is forged on the first run.
 
 ```sh
-fastsandbox kits compile codex
 export OPENAI_API_KEY=sk-...
 fastsandbox run agent.py explain --repo .
 ```

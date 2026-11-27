@@ -32,7 +32,7 @@ daemon cannot be reached, and `UnsupportedVersionError` (with `found` and
 |---|---|
 | `socket_path: Path` | the socket the client talks to |
 | `health: Health` | the health reported when the client connected (`status`, `version`, `api_version`, `is_healthy`); `client.daemon.health()` asks again |
-| `kits: KitCache` | the kit cache `create()` compiles kits into |
+| `kits: KitCache` | the kit cache `create()` takes packages from; `KitCache.default()`, the one of the process, by default |
 | `daemon: Daemon` | health, settings, log levels, disk usage |
 | `sandboxes: Sandboxes` | list, get, find, create from a request |
 | `sandbox(name) -> Sandbox` | the handle of one sandbox; nothing checked until used |
@@ -40,7 +40,7 @@ daemon cannot be reached, and `UnsupportedVersionError` (with `found` and
 | `events: Events`, `prompts: Prompts` | the event and prompt streams |
 | `policy: Policy` | the network policy |
 | `mcp: Mcp` | the MCP gateway settings |
-| `async package(kit) -> KitPackage` | the package of a kit, compiled on first use |
+| `async package(kit) -> KitPackage` | the package of a kit, forged without the `sbx` CLI on first use |
 | `create(...) -> Creation` | a new sandbox (see [sandboxes](sandboxes.md)) |
 
 Each property access builds a new, cheap handle. A `Client` can be used as an

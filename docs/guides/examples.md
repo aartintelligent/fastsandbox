@@ -19,8 +19,8 @@ just example agent-claude ~/my-project -- "explain this project"
 
 Every example talks to the daemon of the current user, creates the sandboxes it
 needs and deletes them when it ends, also on an error or ++ctrl+c++. Run them
-as the user owning the daemon, with the `sbx` CLI installed: the first run of a
-kit compiles it and caches the package. Each file opens with what it shows,
+as the user owning the daemon: the first run of a kit forges it without the
+`sbx` CLI, which only `shell-kits` asks for its YAML mixin. Each file opens with what it shows,
 what was measured on a real daemon, the credentials it reads, and how to run
 it; the [README of the examples](https://github.com/aartintelligent/fastsandbox/blob/main/examples/README.md)
 describes each of them.
@@ -79,7 +79,7 @@ and `-automation`, unattended on a task whose tests fail, checked afterwards.
 | OpenCode | [`agent-opencode`][agent-opencode] | [`agent-opencode-mcp`][agent-opencode-mcp] | [`agent-opencode-automation`][agent-opencode-automation] |
 
 [`agent-kit-args`][agent-kit-args] chooses the model and the effort of the
-`claude` kit when it is compiled (`Kit(args=…)`), without starting the agent.
+`claude` kit when it is forged (`Kit(args=…)`), without starting the agent.
 
 [base]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/base.py
 [daemon]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/daemon.py
