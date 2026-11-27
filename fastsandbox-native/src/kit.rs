@@ -5,16 +5,18 @@
 //! replayed through the socket alone afterwards.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use docker_sandbox::kit::{CompileJob, KitAgent as LibAgent, KitPackage as LibPackage};
+use docker_sandbox::kit::{ImageArchive, KitAgent as LibAgent, KitPackage as LibPackage};
 use docker_sandbox::sandbox::CreateRequest;
+use docker_sandbox_kit::CompileJob;
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use serde_json::Value;
 
 use crate::client::Client;
-use crate::convert::{class_future, from_py, optional_duration, serde_future, to_py};
+use crate::convert::{from_py, optional_duration, serde_future, to_py};
 use crate::sandbox::Sandbox;
 
 /// A compiled kit package, opened from its directory.
@@ -36,9 +38,17 @@ impl KitPackage {
     }
 
     /// The directory of the package.
+    ///
+    /// # Errors
+    ///
+    /// Fails for a package held in memory, which the extension does not make
+    /// yet: it opens or compiles packages into a directory.
     #[getter]
-    fn dir(&self) -> PathBuf {
-        self.inner.dir().to_path_buf()
+    fn dir(&self) -> PyResult<PathBuf> {
+        self.inner
+            .dir()
+            .map(Path::to_path_buf)
+            .ok_or_else(|| PyRuntimeError::new_err("the kit package is held in memory"))
     }
 
     /// The `sbx` version the package was compiled with.
@@ -73,7 +83,12 @@ impl KitPackage {
             .iter()
             .map(|image| {
                 let item = PyDict::new(py);
-                item.set_item("path", &image.path)?;
+                // A package read from a directory holds its images as files.
+                let path = match &image.archive {
+                    ImageArchive::File(path) => Some(path),
+                    _ => None,
+                };
+                item.set_item("path", path)?;
                 item.set_item("reference", image.reference.as_deref())?;
                 Ok(item.into_any().unbind())
             })
@@ -138,10 +153,11 @@ impl KitPackage {
     }
 
     fn __repr__(&self) -> String {
-        format!(
-            "KitPackage(dir={:?})",
-            self.inner.dir().display().to_string()
-        )
+        let dir = self
+            .inner
+            .dir()
+            .map_or_else(|| "memory".to_owned(), |dir| dir.display().to_string());
+        format!("KitPackage(dir={dir:?})")
     }
 }
 
@@ -213,7 +229,7 @@ impl KitAgent {
 #[derive(Debug, Clone)]
 pub(crate) struct KitCompiler {
     /// The compiler of the library.
-    inner: docker_sandbox::kit::KitCompiler,
+    inner: docker_sandbox_kit::KitCompiler,
 }
 
 #[pymethods]
@@ -229,7 +245,7 @@ impl KitCompiler {
         work_dir: PathBuf,
         timeout: Option<f64>,
     ) -> PyResult<Self> {
-        let mut inner = docker_sandbox::kit::KitCompiler::new(sbx, client.inner.clone(), work_dir);
+        let mut inner = docker_sandbox_kit::KitCompiler::new(sbx, client.inner.clone(), work_dir);
         if let Some(timeout) = optional_duration(timeout)? {
             inner = inner.with_timeout(timeout);
         }
@@ -255,8 +271,12 @@ impl KitCompiler {
             job = job.with_arg(name, value);
         }
         let inner = self.inner.clone();
-        class_future(py, async move {
-            inner.compile(&job).await.map(|inner| KitPackage { inner })
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            inner
+                .compile(&job)
+                .await
+                .map(|inner| KitPackage { inner })
+                .map_err(crate::error::kit_to_py)
         })
     }
 }

@@ -10,9 +10,14 @@ requests to their hosts. Inside, the sandbox only sees placeholders.
 
 | Call | What it does |
 |---|---|
-| `await sandbox.push_credentials(update: CredentialsUpdate)` | sends custom secrets, service credentials and their sources |
-| `await sandbox.push_service_secret(service, value)` | the secret of a service `sbx` knows (`github`, `openai`…) for this sandbox, as `sbx secret set SERVICE --sandbox` |
-| `await sandbox.remove_service_secret(service)` | takes it back, as `sbx secret rm` |
+| `await sandbox.push_credentials(update: CredentialsUpdate) -> CredentialsOutcome` | sends custom secrets, service credentials and their sources |
+| `await sandbox.push_service_secret(service, value) -> CredentialsOutcome` | the secret of a service `sbx` knows (`github`, `openai`…) for this sandbox, as `sbx secret set SERVICE --sandbox` |
+| `await sandbox.remove_service_secret(service) -> CredentialsOutcome` | takes it back, as `sbx secret rm` |
+
+The daemon accepts an update even when it withholds it: `CredentialsOutcome.withheld`
+names the services whose credential no kit of the sandbox is authorized, for which
+the proxy injects nothing, a value just pushed included. `Created.withheld`, from the
+creation, says the same for the credentials the kits declare.
 
 `CustomSecret.new(targets: list[str], sentinel: str, value: str,
 env_name: str | None = None)`: the proxy replaces the placeholder `sentinel`

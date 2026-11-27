@@ -16,6 +16,7 @@ from ._base import Model as Model
 from ._base import expose_secret as expose_secret
 from ._base import wire as wire
 from .credentials import CredentialSource as CredentialSource
+from .credentials import CredentialsOutcome as CredentialsOutcome
 from .credentials import CredentialsUpdate as CredentialsUpdate
 from .credentials import CustomSecret as CustomSecret
 from .credentials import ServiceCredential as ServiceCredential

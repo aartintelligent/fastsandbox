@@ -26,6 +26,39 @@ pub(crate) fn to_py(err: Error) -> PyErr {
     Python::attach(|py| build(py, &err).unwrap_or_else(|failure| failure))
 }
 
+/// Converts an error of `docker-sandbox-kit` into the matching Python
+/// exception: an error of the client as [`to_py`] does, a failed compilation
+/// as `KitCompileError`.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "the signature of the `map_err` callbacks it is used as"
+)]
+pub(crate) fn kit_to_py(err: docker_sandbox_kit::Error) -> PyErr {
+    if let docker_sandbox_kit::Error::Client(client) = err {
+        return to_py(client);
+    }
+    Python::attach(|py| build_kit(py, &err).unwrap_or_else(|failure| failure))
+}
+
+/// Builds the exception of `err`, an error of `docker-sandbox-kit` that is
+/// not one of the client, or the error met while building it.
+fn build_kit(py: Python<'_>, err: &docker_sandbox_kit::Error) -> PyResult<PyErr> {
+    let details = PyDict::new(py);
+    details.set_item("transient", err.is_transient())?;
+    let class = match err {
+        docker_sandbox_kit::Error::Compile(_) => "KitCompileError",
+        // A kit refused or forged, which the compiler the extension exposes
+        // does not report, or a variant added by a newer
+        // `docker-sandbox-kit`: still a SandboxError.
+        _ => "SandboxError",
+    };
+    let module = py.import(ERRORS_MODULE)?;
+    let instance = module
+        .getattr(class)?
+        .call((err.to_string(),), Some(&details))?;
+    Ok(PyErr::from_value(instance))
+}
+
 /// Builds the exception of `err`, or the error met while building it.
 fn build(py: Python<'_>, err: &Error) -> PyResult<PyErr> {
     let details = PyDict::new(py);
@@ -102,7 +135,6 @@ fn classify(err: &Error, details: &Bound<'_, PyDict>) -> PyResult<&'static str> 
             details.set_item("path", path)?;
             "KitPackageError"
         }
-        Error::Compile(_) => "KitCompileError",
         // A variant added by a newer `docker-sandbox`: still a SandboxError.
         _ => "SandboxError",
     };

@@ -126,6 +126,10 @@ Credentials pushed to a sandbox and the secrets of the daemon.
     options:
       heading_level: 3
 
+::: fastsandbox.models.CredentialsOutcome
+    options:
+      heading_level: 3
+
 ::: fastsandbox.models.CredentialsUpdate
     options:
       heading_level: 3

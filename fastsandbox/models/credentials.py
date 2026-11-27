@@ -6,7 +6,13 @@ from pydantic import Field, SecretStr, field_serializer
 
 from ._base import Model, expose_secret
 
-__all__ = ["CredentialSource", "CredentialsUpdate", "CustomSecret", "ServiceCredential"]
+__all__ = [
+    "CredentialSource",
+    "CredentialsOutcome",
+    "CredentialsUpdate",
+    "CustomSecret",
+    "ServiceCredential",
+]
 
 
 def _env_name_part(name: str) -> str:
@@ -140,3 +146,23 @@ class CredentialsUpdate(Model):
     def without_sandbox_secret(self, service: str) -> CredentialsUpdate:
         """The update, removing the stored secret of `service`."""
         return self.with_service_credential(service, "").without_credential_source(service)
+
+
+class CredentialsOutcome(Model):
+    """Outcome of a credentials update pushed to a sandbox.
+
+    The daemon accepts an update even when it withholds what it carries: read
+    `withheld` to know which services get nothing.
+
+    Attributes:
+        message: Human-readable message, e.g. `Credentials updated`.
+        withheld: Services whose credential, declared by a kit of the sandbox, the daemon
+            does not authorize: the proxy injects nothing for them, a value just pushed
+            included.
+        credential_source_updates_applied: Whether the credential sources of the update
+            were applied; `None` when the update carries none.
+    """
+
+    message: str | None = None
+    withheld: list[str] = []
+    credential_source_updates_applied: bool | None = None

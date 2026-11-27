@@ -69,6 +69,23 @@ await sandbox.push_credentials(update)
 [`ServiceCredential`][fastsandbox.models.ServiceCredential] and
 `without_credential_source()` take a credential back.
 
+## Withheld credentials
+
+The daemon accepts an update even when it withholds what it carries. Each of
+these calls returns a
+[`CredentialsOutcome`][fastsandbox.models.CredentialsOutcome], whose
+`withheld` names the services whose credential, declared by a kit of the
+sandbox, the daemon does not authorize: the proxy injects nothing for them, a
+value just pushed included. The creation reports the same in
+[`Created.withheld`][fastsandbox.models.Created], for the credentials the
+kits declare:
+
+```python
+outcome = await sandbox.push_service_secret("openai", value)
+if "openai" in outcome.withheld:
+    print("the proxy gives the sandbox no openai credential")
+```
+
 !!! tip
     Push only the credentials a sandbox needs: they are scoped to it and go
     with it. FastSandbox does this for the agents it runs, from the
