@@ -378,7 +378,8 @@ impl Sandbox {
     // Credentials.
 
     /// Pushes a credentials update: custom secrets, service credentials and
-    /// their sources.
+    /// their sources. Resolves to the outcome, with the services the daemon
+    /// withholds.
     fn push_credentials<'py>(
         &self,
         py: Python<'py>,
@@ -386,11 +387,12 @@ impl Sandbox {
     ) -> PyResult<Bound<'py, PyAny>> {
         let update: CredentialsUpdate = from_py(update)?;
         let inner = self.inner.clone();
-        unit_future(py, async move { inner.push_credentials(&update).await })
+        serde_future(py, async move { inner.push_credentials(&update).await })
     }
 
     /// Sets the secret of `service` for this sandbox; the proxy adds it to
-    /// requests, the sandbox never sees it.
+    /// requests, the sandbox never sees it. Resolves to the outcome, with the
+    /// services the daemon withholds.
     fn push_service_secret<'py>(
         &self,
         py: Python<'py>,
@@ -398,19 +400,20 @@ impl Sandbox {
         value: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let inner = self.inner.clone();
-        unit_future(py, async move {
+        serde_future(py, async move {
             inner.push_service_secret(&service, value).await
         })
     }
 
-    /// Removes the secret of `service` for this sandbox.
+    /// Removes the secret of `service` for this sandbox. Resolves to the
+    /// outcome.
     fn remove_service_secret<'py>(
         &self,
         py: Python<'py>,
         service: String,
     ) -> PyResult<Bound<'py, PyAny>> {
         let inner = self.inner.clone();
-        unit_future(
+        serde_future(
             py,
             async move { inner.remove_service_secret(&service).await },
         )

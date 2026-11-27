@@ -178,6 +178,9 @@ class Created(Model):
         status: Runtime state right after creation.
         workspace: Workspace directory, empty when there is none.
         mcp: MCP gateway of the sandbox.
+        withheld: Services whose credential, declared by a kit of the sandbox, the daemon
+            does not authorize: the proxy injects nothing for them. Empty when the kits
+            declare no credential or every one is authorized.
     """
 
     id: str
@@ -186,6 +189,7 @@ class Created(Model):
     status: str
     workspace: str = ""
     mcp: McpGateway | None = None
+    withheld: list[str] = []
 
 
 class CreateRequest(Model):

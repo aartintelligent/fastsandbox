@@ -28,9 +28,9 @@ checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
 name = "docker-sandbox"
-version = "0.1.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f99ff165253efd643f8f1a657b63a68d7c49c105617aab066340375f7e51382a"
+checksum = "cb0bde14e80bc875a385c9212ce3b32ef66ffe8df09046bc750cafd7e37b43da"
 dependencies = [
  "bytes",
  "futures-core",
@@ -40,6 +40,26 @@ dependencies = [
  "hyper",
  "hyper-util",
  "percent-encoding",
+ "serde",
+ "serde_json",
+ "tar",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
+name = "docker-sandbox-kit"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2fb7e87540420e840caba8620dcc9c87141612c4735ffcd40ad12d101bd1513"
+dependencies = [
+ "bytes",
+ "docker-sandbox",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "serde",
  "serde_json",
  "tar",
@@ -64,6 +84,7 @@ version = "0.1.3"
 dependencies = [
  "bytes",
  "docker-sandbox",
+ "docker-sandbox-kit",
  "futures-util",
  "pyo3",
  "pyo3-async-runtimes",
@@ -627,6 +648,12 @@ dependencies = [
  "libc",
  "rustix",
 ]
+
+[[package]]
+name = "zeroize"
+version = "1.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85ccff8a4805aba1eaa4cd4afcd49f7557dd2cf5fd79ffc37f8959466effc5aa"
 
 [[package]]
 name = "zmij"

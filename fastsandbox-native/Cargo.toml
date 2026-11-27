@@ -30,8 +30,12 @@ crate-type = ["cdylib"]
 [dependencies]
 # Byte payloads of files, archives and interactive sessions.
 bytes = "1"
-# The library the extension exposes; the kit compiler is part of the API.
-docker-sandbox = { version = "0.1.1", features = ["kit-compiler"] }
+# The library the extension exposes.
+docker-sandbox = "0.3.0"
+# The kit compiler of the API, which `docker-sandbox` left for this crate of
+# the same version; its forge, which the extension does not expose yet, is
+# left out with the default features.
+docker-sandbox-kit = { version = "0.3.0", default-features = false, features = ["compiler"] }
 # `StreamExt::next` over the streams of the library.
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 # One wheel per platform for every CPython from 3.12 (the stable ABI).

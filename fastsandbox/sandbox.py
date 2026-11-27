@@ -21,6 +21,7 @@ from .exceptions import SandboxTimeoutError
 from .models import (
     AgentSessionSpec,
     AttachSpec,
+    CredentialsOutcome,
     CredentialsUpdate,
     ExecInspect,
     ExecOutput,
@@ -366,20 +367,34 @@ class Sandbox:
 
     # Credentials.
 
-    async def push_credentials(self, update: CredentialsUpdate) -> None:
-        """Pushes a credentials update: custom secrets, service credentials and their sources."""
-        await self._native.push_credentials(wire(update))
+    async def push_credentials(self, update: CredentialsUpdate) -> CredentialsOutcome:
+        """Pushes a credentials update: custom secrets, service credentials and their sources.
 
-    async def push_service_secret(self, service: str, value: str) -> None:
+        Returns:
+            The outcome; its `withheld` names the services the daemon gives nothing.
+        """
+        return CredentialsOutcome.model_validate(await self._native.push_credentials(wire(update)))
+
+    async def push_service_secret(self, service: str, value: str) -> CredentialsOutcome:
         """Sets the secret of `service` for this sandbox.
 
         The proxy adds it to requests; the sandbox never sees it.
-        """
-        await self._native.push_service_secret(service, value)
 
-    async def remove_service_secret(self, service: str) -> None:
-        """Removes the secret of `service` for this sandbox."""
-        await self._native.remove_service_secret(service)
+        Returns:
+            The outcome; `service` is in its `withheld` when no kit of the sandbox is
+            authorized its credential, and the proxy then injects nothing.
+        """
+        return CredentialsOutcome.model_validate(
+            await self._native.push_service_secret(service, value)
+        )
+
+    async def remove_service_secret(self, service: str) -> CredentialsOutcome:
+        """Removes the secret of `service` for this sandbox.
+
+        Returns:
+            The outcome of the update.
+        """
+        return CredentialsOutcome.model_validate(await self._native.remove_service_secret(service))
 
     # Kits.
 
