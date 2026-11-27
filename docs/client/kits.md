@@ -6,8 +6,8 @@ itself: a **kit package** holds what the `sbx` CLI would send it for a kit,
 and every sandbox of that kit is created from it through the socket alone.
 fastsandbox forges packages without the CLI, the base kit rebuilt from its
 published image; it compiles them with the CLI only when asked. This page
-covers the cache that makes packages, compositions, packages themselves, and
-kits added to a running sandbox.
+covers the cache that makes packages, compositions, mixins written in Python,
+packages themselves, and kits added to a running sandbox.
 
 ## The kit cache
 
@@ -68,8 +68,9 @@ A [`Kit`][fastsandbox.Kit] composes a `base` kit with `mixins`, in order, and
 kit `args`, as `sbx create --kit-arg` takes them. The base is an agent or
 `shell`, a published kit reference, or, for the CLI only, the directory of a
 local kit; a mixin is a directory, whose `spec.yaml` the forge reads when it
-is written in the JSON subset of YAML. Each composition is kept apart, under
-its [`cache_key`][fastsandbox.Kit.cache_key].
+is written in the JSON subset of YAML, or a mixin
+[written in Python](#mixins-written-in-python). Each composition is kept
+apart, under its [`cache_key`][fastsandbox.Kit.cache_key].
 
 ```python
 from fastsandbox import Kit
@@ -86,6 +87,46 @@ forges without the cache, in memory or into a directory of one's choice;
 [`KitCompiler`][fastsandbox.KitCompiler] compiles with the CLI, and raises
 [`KitCompileError`][fastsandbox.exceptions.KitCompileError] when the CLI
 cannot.
+
+## Mixins written in Python
+
+A mixin need not be a directory. A [`KitDescriptor`][fastsandbox.KitDescriptor]
+holds what it declares, the v3 descriptor of its `spec.yaml`, built in Python;
+a [`Mixin`][fastsandbox.Mixin] lists it under a reference, and `Kit.mixins`
+takes it as it takes a directory:
+
+```python title="docs_src/client/kit_mixins.py" hl_lines="4-15"
+--8<-- "docs_src/client/kit_mixins.py"
+```
+
+- A [`LifecycleStep`][fastsandbox.LifecycleStep] is a command, a shell command
+  or a program and its arguments: run once, when the sandbox is created
+  (`with_install`), or at each of its starts (`with_startup`, in the
+  background with `in_background()`), as a user of the sandbox (`as_user`).
+  An install command runs in an emptied environment, which keeps only the
+  proxy and certificate variables: `with_env(*names)` gives it variables of
+  the sandbox, `with_gateway_env()` those that name its MCP gateway.
+- `with_network_allow(*hosts)` and `with_network_deny(*hosts)` add rules while
+  the sandbox runs, each host in a form the CLI takes (`host`, `*.domain`,
+  `host:port`, a CIDR prefix); a deny wins over any allow.
+- The models hold the format field for field, under the names it gives its
+  fields: `model_dump_json()` is the descriptor as any program reads it, and
+  [`to_spec()`][fastsandbox.KitDescriptor.to_spec] the text of its
+  `spec.yaml`, which the CLI reads too.
+  [`KitDescriptor.parse()`][fastsandbox.KitDescriptor.parse], `read()` and
+  `from_json()` read a descriptor, [`Mixin.read(dir)`][fastsandbox.Mixin.read]
+  the mixin of a directory.
+- A mixin is checked when it is made, by the rules of the forge, which
+  `docker-sandbox-kit` holds: a host the CLI refuses, a URL or a path in place
+  of a host, a command without a word, an install command in the background,
+  a field the format does not have, or a kit argument raise
+  [`InvalidKitError`][fastsandbox.exceptions.InvalidKitError] where the mixin
+  is written, not when a sandbox is created from it.
+- The reference is a path, as the CLI lists a local kit, whose last part names
+  the mixin: the kit list of the sandbox shows it. The daemon finds the mixin
+  by its image, so the path need not exist. A cache given the CLI writes the
+  mixin into a directory named after it, for the CLI, which lists the mixin
+  under that directory.
 
 ## Packages
 

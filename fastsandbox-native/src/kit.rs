@@ -4,13 +4,18 @@
 //! the socket alone. The forge writes it without the `sbx` CLI, the base kit
 //! rebuilt from its published image, in memory or into a directory; the
 //! compiler captures it once from the CLI, run behind a capturing proxy.
+//!
+//! Mixins written in Python cross the boundary as their reference and their
+//! descriptor in JSON: the crate checks them, as it checks those it reads
+//! from a directory, so that its rules are written once.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use docker_sandbox::kit::{ImageArchive, KitAgent as LibAgent, KitPackage as LibPackage};
 use docker_sandbox::sandbox::CreateRequest;
-use docker_sandbox_kit::{CompileJob, Mixin};
+use docker_sandbox_kit::{CompileJob, KitDescriptor, Mixin};
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use serde_json::Value;
@@ -280,9 +285,78 @@ impl KitCompiler {
     }
 }
 
+/// A mixin given to the forge: one written in Python, or the directory of one.
+#[derive(Debug, FromPyObject)]
+pub(crate) enum MixinArg {
+    /// The reference and the descriptor, in JSON, of a mixin written in
+    /// Python.
+    Written(String, String),
+    /// The directory of a mixin, described by its `spec.yaml`.
+    Dir(PathBuf),
+}
+
+impl MixinArg {
+    /// The mixin of the crate, checked as the forge checks it.
+    fn into_mixin(self) -> PyResult<Mixin> {
+        match self {
+            Self::Written(reference, descriptor) => written(reference, &descriptor),
+            Self::Dir(dir) => Mixin::read(dir).map_err(crate::error::kit_to_py),
+        }
+    }
+}
+
+/// The mixin of the JSON `descriptor`, listed under `reference`, checked as
+/// the forge checks it.
+fn written(reference: String, descriptor: &str) -> PyResult<Mixin> {
+    let value = serde_json::from_str(descriptor)
+        .map_err(|error| PyValueError::new_err(format!("descriptor is not JSON: {error}")))?;
+    let descriptor = KitDescriptor::from_json(value).map_err(crate::error::kit_to_py)?;
+    Mixin::new(reference, descriptor).map_err(crate::error::kit_to_py)
+}
+
+/// Checks the mixin of the JSON `descriptor`, listed under `reference`, as
+/// the forge checks it.
+///
+/// # Errors
+///
+/// Raises `InvalidKitError` when the forge would refuse the mixin.
+#[pyfunction]
+pub(crate) fn check_mixin(reference: String, descriptor: &str) -> PyResult<()> {
+    written(reference, descriptor).map(drop)
+}
+
+/// The mixin of the directory `dir`: its reference, the canonical path of the
+/// directory, and its descriptor in JSON.
+///
+/// # Errors
+///
+/// Raises when the directory or its `spec.yaml` cannot be read, and
+/// `InvalidKitError` when the forge would refuse the descriptor.
+#[pyfunction]
+pub(crate) fn read_mixin(dir: PathBuf) -> PyResult<(String, String)> {
+    let mixin = Mixin::read(dir).map_err(crate::error::kit_to_py)?;
+    Ok((
+        mixin.reference().to_owned(),
+        mixin.descriptor().to_json().to_string(),
+    ))
+}
+
+/// The descriptor of the text of a `spec.yaml` written in JSON, in JSON.
+///
+/// # Errors
+///
+/// Raises `InvalidKitError` when the text is not JSON, or not a v3 mixin the
+/// forge takes.
+#[pyfunction]
+pub(crate) fn parse_descriptor(text: &str) -> PyResult<String> {
+    KitDescriptor::parse(text)
+        .map(|descriptor| descriptor.to_json().to_string())
+        .map_err(crate::error::kit_to_py)
+}
+
 /// Forges kit packages without the `sbx` CLI, through the socket alone: the
-/// base kit rebuilt from its published image, the mixins read from their
-/// directories.
+/// base kit rebuilt from its published image, the mixins written in Python or
+/// read from their directories.
 #[pyclass(frozen, module = "fastsandbox._native")]
 #[derive(Debug, Clone)]
 pub(crate) struct KitForge {
@@ -301,25 +375,25 @@ impl KitForge {
     }
 
     /// Forges the published kit `base`, e.g. `docker.io/sbx/shell:latest`,
-    /// with the mixins of the directories `mixins` and kit `args`: in memory,
-    /// or into the package directory `output` when given.
+    /// with `mixins`, written in Python or directories, and kit `args`: in
+    /// memory, or into the package directory `output` when given.
     ///
     /// # Errors
     ///
     /// Fails, before anything is sent, when a mixin directory cannot be read
-    /// or holds a descriptor the forge refuses.
+    /// or a mixin holds a descriptor the forge refuses.
     #[pyo3(signature = (base, mixins=Vec::new(), args=BTreeMap::new(), output=None))]
     fn forge<'py>(
         &self,
         py: Python<'py>,
         base: String,
-        mixins: Vec<PathBuf>,
+        mixins: Vec<MixinArg>,
         args: BTreeMap<String, String>,
         output: Option<PathBuf>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let mut forge = docker_sandbox_kit::KitForge::new(self.client.clone()).with_base(base);
-        for dir in mixins {
-            forge = forge.with_mixin(Mixin::read(dir).map_err(crate::error::kit_to_py)?);
+        for mixin in mixins {
+            forge = forge.with_mixin(mixin.into_mixin()?);
         }
         for (name, value) in args {
             forge = forge.with_arg(name, value);

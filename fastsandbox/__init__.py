@@ -38,6 +38,9 @@ from .kits import KitCompiler as KitCompiler
 from .kits import KitForge as KitForge
 from .kits import KitPackage as KitPackage
 from .mcp import Mcp as Mcp
+from .mixins import KitDescriptor as KitDescriptor
+from .mixins import LifecycleStep as LifecycleStep
+from .mixins import Mixin as Mixin
 from .models import CreateRequest as CreateRequest
 from .models import CredentialsUpdate as CredentialsUpdate
 from .models import CustomSecret as CustomSecret

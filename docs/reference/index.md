@@ -13,7 +13,7 @@ are in [`fastsandbox.models`](models.md), the errors in
 | [Sandboxes](sandboxes.md) | `Sandboxes`, the collection, and `Sandbox`, the handle of one sandbox |
 | [Sessions and streams](sessions.md) | `Session`, `Interactive`, `Stream`, `SshTunnel` |
 | [Daemon services](services.md) | `Daemon`, `Images`, `Policy`, `Mcp`, `Events`, `Prompts` |
-| [Kits](kits.md) | `Kit`, `KitPackage`, `KitAgent`, `KitForge`, `KitCompiler`, `KitCache` |
+| [Kits](kits.md) | `Kit`, `KitPackage`, `KitAgent`, `KitForge`, `KitCompiler`, `KitCache`; mixins written in Python: `Mixin`, `KitDescriptor`, `LifecycleStep` |
 | [FastSandbox](applications.md) | `FastSandbox`, `run()`, `Task`, `Context`, `unique_name()` |
 | [Agents](agents.md) | `AGENTS`, `AgentProfile`, `AgentRunner`, `AgentRun`, `Credential` |
 | [Parameters](params.md) | `Depends`, `WorkspaceDir`, `Mounted`, `Uploaded`, `Network` |

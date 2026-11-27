@@ -16,9 +16,9 @@ image; it compiles them with the CLI only when asked.
 `Kit(base: str = "shell", mixins: tuple[str, ...] = (), args: dict[str, str] = {})`:
 `base` is an agent (`claude`, `codex`…), `shell`, a published kit reference
 (`docker.io/sbx/claude:latest`), or, for the CLI only, a local kit directory;
-`mixins` are directories, composed in order, whose `spec.yaml` the forge reads
-in the JSON subset of YAML; `args` are kit arguments, as `sbx create --kit-arg`
-takes them. `label` is a readable name, `cache_key` the cache directory name.
+`mixins`, composed in order, are directories, whose `spec.yaml` the forge reads
+in the JSON subset of YAML, or `Mixin`s written in Python; `args` are kit
+arguments, as `sbx create --kit-arg` takes them. `label` is a readable name, `cache_key` the cache directory name.
 `client.create(kit=...)` accepts a name, a `Kit` or a `KitPackage`.
 
 ### `KitCache`
@@ -39,6 +39,24 @@ composition on first use and keeps it:
 `KitCache.default()` is the cache of the process, shared by the clients given
 none; `client.kits` is the cache of a client; `await client.package(kit)` goes
 through it (a `KitPackage` is returned as is).
+
+### Mixins written in Python (`fastsandbox.mixins`)
+
+Frozen Pydantic models of the v3 descriptor of a mixin, its `spec.yaml`, field
+for field under the names of the format: `model_dump_json()` is the descriptor
+any program reads, `to_spec()` the text of its `spec.yaml`.
+
+| Member | What it is |
+|---|---|
+| `LifecycleStep(command=str \| tuple[str, ...], user=, description=, env=, background=)` | a command, a shell command or a program and its arguments; `as_user(user)`, `with_description(text)`, `with_env(*names)`, `with_gateway_env()` (`MCP_GATEWAY_URL`, `MCP_SENTINEL_TOKEN_NAME`), `in_background()` (startup only) |
+| `KitDescriptor.mixin(display_name)` | an empty mixin; `with_description`, `with_version`, `with_install(step)` (once, at creation), `with_startup(step)` (each start), `with_network_allow(*hosts)`, `with_network_deny(*hosts)` |
+| `KitDescriptor.parse(text)`, `read(path)`, `from_json(value)` | a descriptor read and checked by the crate; `to_json()`, `to_spec()` |
+| `Mixin(reference=, descriptor=)` | a descriptor listed under a path whose last part, `name`, names the mixin (`/kits/acme-tools`); need not exist. Checked as it is made: `InvalidKitError` |
+| `Mixin.read(dir)` | the mixin of a directory, under its canonical path |
+
+`capabilities` holds `LifecycleCapability` (`config: LifecycleConfig`,
+`install`, `startup`) and `NetworkCapability` (`config: NetworkConfig`,
+`runtime` and `install` `NetworkRules`, `allow`, `deny`).
 
 ### `KitForge`
 
@@ -96,7 +114,7 @@ fastsandbox kits compile shell --mixin ./kits/my-mixin --arg model=fast
 
 ```python
 import fastsandbox
-from fastsandbox import Kit, KitCache
+from fastsandbox import Kit, KitCache, KitDescriptor, LifecycleStep, Mixin
 
 
 async def main() -> None:
@@ -111,6 +129,15 @@ async def main() -> None:
     claude = await client.package("claude")
     if claude.agent is not None:
         print(claude.agent.command("--version"), claude.agent.hosts())
+
+    # A mixin written in Python, checked as it is made.
+    step = LifecycleStep(command="echo ready > ~/.ready").as_user("agent")
+    descriptor = (
+        KitDescriptor.mixin("Ready").with_install(step).with_network_allow("api.example.com:443")
+    )
+    ready = Mixin(reference="/kits/ready", descriptor=descriptor)
+    async with client.create(kit=Kit(base="shell", mixins=(ready,))) as sandbox:
+        print(sandbox.name, "holds ~/.ready")
 
     # A local kit only the CLI resolves: ask the CLI.
     local = await KitCache(sbx="sbx").package(client, "./kits/my-local-kit")
@@ -128,7 +155,13 @@ if __name__ == "__main__":
   resolves, with `KitCache(sbx="sbx")`: then its first compilation of an agent
   kit can take minutes, which `fastsandbox kits compile` does ahead of time.
 - A mixin whose `spec.yaml` is written in YAML is refused by the forge
-  (`InvalidKitError`): write it in the JSON subset of YAML, or ask the CLI.
+  (`InvalidKitError`): write it in the JSON subset of YAML, write it in Python
+  (`Mixin`), or ask the CLI.
+- A `Mixin` is refused as it is made, by the rules of the forge: a host the
+  CLI refuses, a URL or a path in place of a host, an empty command, an
+  install command in the background, an unknown field, a kit argument
+  (`${{ }}`). An install command runs in an emptied environment: give it
+  variables with `with_env`.
 - Each composition (base, mixins, args) is kept apart.
 - After `add_to()`, the new container needs a session of its own: open a new
   `async with sandbox.running():` block.

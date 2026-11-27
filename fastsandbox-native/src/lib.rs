@@ -34,7 +34,9 @@ mod _native {
     #[pymodule_export]
     use crate::exec::{ExecSession, SessionGuard};
     #[pymodule_export]
-    use crate::kit::{KitAgent, KitCompiler, KitForge, KitPackage};
+    use crate::kit::{
+        KitAgent, KitCompiler, KitForge, KitPackage, check_mixin, parse_descriptor, read_mixin,
+    };
     #[pymodule_export]
     use crate::sandbox::Sandbox;
     #[pymodule_export]

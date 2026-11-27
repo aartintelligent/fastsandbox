@@ -5,7 +5,8 @@ the `sbx` CLI would send for a kit, and every sandbox of that kit is created
 from it through the socket alone. `KitForge` writes it without the CLI, the
 base kit rebuilt from its published image; `KitCompiler` captures it from the
 CLI. `KitCache` forges packages on first use and keeps them in memory, or
-compiles them with the CLI when given it.
+compiles them with the CLI when given it. A composition (`Kit`) takes its
+mixins as directories or written in Python (`fastsandbox.mixins`).
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from pydantic import BaseModel, ConfigDict
 
 from . import _native
 from .exceptions import KitForgeError
+from .mixins import Mixin
 from .models import Created, CreateRequest, PackageImage, SwapOutcome, wire
 
 if TYPE_CHECKING:
@@ -225,7 +227,7 @@ class KitForge:
         forge = _native.KitForge(self._client.native)
         native = await forge.forge(
             published(kit.base),
-            list(mixin_dirs(kit.mixins)),
+            mixin_args(kit.mixins),
             dict(kit.args),
             os.fspath(output) if output is not None else None,
         )
@@ -265,24 +267,34 @@ class KitCompiler:
         base: str,
         output: str | os.PathLike[str],
         *,
-        mixins: tuple[str, ...] | list[str] = (),
+        mixins: tuple[str | Mixin, ...] | list[str | Mixin] = (),
         args: dict[str, str] | None = None,
     ) -> KitPackage:
         """Compiles a kit into the package directory `output`.
 
         `base` is `shell`, an agent, a reference or a kit directory, composed with `mixins` and
-        kit `args`.
+        kit `args`. A mixin written in Python is given to the CLI as a directory holding its
+        `spec.yaml`, named after it and removed after the compilation: the CLI lists it under
+        the path of that directory.
 
         Raises:
             KitCompileError: When the `sbx` CLI cannot compile the kit.
 
         """
         work = self._work_dir or Path(tempfile.mkdtemp(prefix="fastsandbox-kc-"))
+        written = Path(tempfile.mkdtemp(prefix="fastsandbox-mixins-"))
         try:
+            dirs = [
+                os.fspath(write_mixin(mixin, written / str(index)))
+                if isinstance(mixin, Mixin)
+                else mixin
+                for index, mixin in enumerate(mixins)
+            ]
             compiler = _native.KitCompiler(self._sbx, self._client.native, work, self._timeout)
-            native = await compiler.compile(base, output, list(mixins), dict(args or {}))
+            native = await compiler.compile(base, output, dirs, dict(args or {}))
             return KitPackage(native)
         finally:
+            shutil.rmtree(written, ignore_errors=True)
             if self._work_dir is None:
                 shutil.rmtree(work, ignore_errors=True)
 
@@ -293,14 +305,15 @@ class Kit(BaseModel):
     Attributes:
         base: The base kit: an agent or `shell`, a kit reference, or the
             directory of a local kit.
-        mixins: Mixin kits composed on top of the base, in order.
+        mixins: Mixin kits composed on top of the base, in order: directories,
+            mixins written in Python (`Mixin`), or, for the CLI only, references.
         args: Kit arguments, as `sbx create --kit-arg` takes them.
     """
 
     model_config = ConfigDict(frozen=True)
 
     base: str = "shell"
-    mixins: tuple[str, ...] = ()
+    mixins: tuple[str | Mixin, ...] = ()
     args: dict[str, str] = {}
 
     @property
@@ -308,7 +321,7 @@ class Kit(BaseModel):
         """A readable name of the composition, e.g. `shell+mixin@model=x`."""
         label = self.base
         for mixin in self.mixins:
-            label += "+" + Path(mixin).name
+            label += "+" + (mixin.name if isinstance(mixin, Mixin) else Path(mixin).name)
         if self.args:
             label += "@" + ",".join(f"{k}={v}" for k, v in sorted(self.args.items()))
         return label
@@ -446,19 +459,32 @@ def published(base: str) -> str:
     return f"docker.io/sbx/{base}:latest"
 
 
-def mixin_dirs(mixins: tuple[str, ...]) -> list[str]:
-    """The directories of `mixins`, as the forge reads them.
+def mixin_args(mixins: tuple[str | Mixin, ...]) -> list[str | tuple[str, str]]:
+    """`mixins`, as the native forge takes them.
+
+    Directories, and the reference and the descriptor in JSON of those written in Python.
 
     Raises:
         KitForgeError: When a mixin is not a directory, but a reference.
     """
-    dirs = []
+    forged: list[str | tuple[str, str]] = []
     for mixin in mixins:
+        if isinstance(mixin, Mixin):
+            forged.append((mixin.reference, mixin.descriptor.model_dump_json()))
+            continue
         path = Path(mixin).expanduser()
         if not path.is_dir():
             raise KitForgeError(
                 f"the mixin {mixin} is not a directory: a mixin given by reference only the "
                 'sbx CLI resolves, give the kit cache the CLI, KitCache(sbx="sbx")'
             )
-        dirs.append(os.fspath(path))
-    return dirs
+        forged.append(os.fspath(path))
+    return forged
+
+
+def write_mixin(mixin: Mixin, parent: Path) -> Path:
+    """Writes the `spec.yaml` of `mixin` into a directory of `parent` named after it."""
+    directory = parent / mixin.name
+    directory.mkdir(parents=True)
+    (directory / "spec.yaml").write_text(mixin.descriptor.to_spec())
+    return directory

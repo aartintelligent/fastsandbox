@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import fastsandbox
-from fastsandbox import Kit, KitForge
+from fastsandbox import Kit, KitDescriptor, KitForge, LifecycleStep, Mixin
 
 MIXIN = {
     "schemaVersion": "3",
@@ -37,6 +37,25 @@ async def test_a_forged_kit_and_its_mixin_create_a_sandbox(
         sandbox.running(),
     ):
         assert await sandbox.read_text("/tmp/live-tools") == "installed\n"
+
+
+async def test_a_mixin_written_in_python_runs_its_install_commands(
+    client: fastsandbox.Client,
+) -> None:
+    step = LifecycleStep(command='echo "written as $(id -un)" > /tmp/live-written')
+    descriptor = (
+        KitDescriptor.mixin("Live written")
+        .with_install(step.as_user("agent"))
+        .with_network_allow("example-live-mixin.invalid:443")
+    )
+    written = Mixin(reference="/kits/live-written", descriptor=descriptor)
+    package = await KitForge(client).forge(Kit(base="shell", mixins=(written,)))
+    assert package.kit_refs[1:] == ["/kits/live-written"]
+    async with (
+        client.create(fastsandbox.unique_name("live-written"), kit=package) as sandbox,
+        sandbox.running(),
+    ):
+        assert await sandbox.read_text("/tmp/live-written") == "written as agent\n"
 
 
 async def test_an_agent_kit_is_forged_with_its_agent(client: fastsandbox.Client) -> None:

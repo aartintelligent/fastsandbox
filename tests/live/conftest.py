@@ -1,9 +1,8 @@
 """The tests against the real daemon of the current user (`just test-live`).
 
 Every test under this directory is marked `live`, which the default run
-leaves out. They create throw-away sandboxes from the `shell` kit, compiled
-once into the kit cache with the `sbx` CLI, and delete them; only dummy values
-are used.
+leaves out. They create throw-away sandboxes from the `shell` kit, forged
+without the `sbx` CLI, and delete them; only dummy values are used.
 """
 
 from __future__ import annotations
