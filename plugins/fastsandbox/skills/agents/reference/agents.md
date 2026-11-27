@@ -90,7 +90,8 @@ without asking: the sandbox is what makes that safe.
 ## Choosing the kit and the model
 
 `kit=Kit(base="claude", args={...})` composes the agent's kit with kit
-arguments (`sbx create --kit-arg`), or with `mixins=(...)`. The `claude` kit
+arguments (`sbx create --kit-arg`), or with `mixins=(...)`: directories, or
+`Mixin`s written in Python (see the client skill). The `claude` kit
 declares `model` and `reasoningEffort`, whose values the forge checks as the
 CLI does (`InvalidKitError`). Each composition is forged once and kept apart
 from the plain kit.
