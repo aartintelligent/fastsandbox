@@ -9,6 +9,10 @@ gives its fields: `model_dump_json()` is the descriptor as any program reads it,
 A `Mixin` lists a descriptor under its reference, and the crate checks it when it is made, by
 the rules of the forge: an `InvalidKitError` is raised where the mixin is written, not when a
 sandbox is created from it.
+
+`Mixin.mcp()` builds, as the crate does, the mixin that gives the agent of a sandbox its
+`McpServer`s: it registers them in the configuration of the agent, inside the sandbox, so that
+nothing is registered with the daemon or written on the host.
 """
 
 from __future__ import annotations
@@ -35,6 +39,7 @@ __all__ = [
     "LifecycleCapability",
     "LifecycleConfig",
     "LifecycleStep",
+    "McpServer",
     "Mixin",
     "NetworkCapability",
     "NetworkConfig",
@@ -345,6 +350,67 @@ class KitDescriptor(_Spec):
         return self.model_copy(update={"capabilities": (*self.capabilities, capability)})
 
 
+class McpServer(BaseModel):
+    """An MCP server for the agent of a sandbox, registered by `Mixin.mcp()`.
+
+    Make one with `McpServer.host()` or `McpServer.remote()`; `Mixin.mcp()` checks it.
+
+    Attributes:
+        name: The name the agent knows the server under: letters, digits, `-` and `_`.
+        url: The URL of its endpoint, over streamable HTTP.
+        token_env: The variable of the sandbox holding its bearer token, if it takes one.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    url: str
+    token_env: str | None = None
+
+    @classmethod
+    def host(cls, name: str, port: int) -> McpServer:
+        """A server a process of the host serves on `port` of its loopback, in any language.
+
+        The sandbox reaches it at `http://host.docker.internal:<port>/mcp`; its proxy forwards
+        the requests to the loopback of the host as `localhost:<port>`, so a server guarded
+        against DNS rebinding takes them as it takes those of the host. Its bearer token is
+        read from the variable `token_env`, `DOCKER_SANDBOX_MCP_<NAME>_TOKEN`, which the
+        creation request sets (`env(token)`) and the server checks: the token, not the origin
+        of a request, tells the sandbox apart from the other processes of the host. The proxy
+        writes no secret into the requests to the host: the sandbox holds that token, which is
+        to be random and its own.
+        """
+        name, url, token_env = _native.mcp_host_server(name, port)
+        return cls(name=name, url=url, token_env=token_env)
+
+    @classmethod
+    def remote(cls, name: str, url: str) -> McpServer:
+        """A remote server at `url`, called by the agent itself.
+
+        It takes no token until `with_bearer_env()`.
+        """
+        return cls(name=name, url=url)
+
+    def with_bearer_env(self, env: str) -> McpServer:
+        """The server, sent the content of the variable `env` of the sandbox as its bearer token.
+
+        For a key the sandbox must not hold, give the sandbox a `CustomSecret` for the host of
+        the server whose `env_name` is `env`: the variable holds its placeholder, which the
+        proxy replaces with the key.
+        """
+        return self.model_copy(update={"token_env": env})
+
+    def env(self, token: str) -> dict[str, str]:
+        """The variables of a creation request that give the server its bearer token `token`.
+
+        Raises:
+            ValueError: When the server takes no token.
+        """
+        if self.token_env is None:
+            raise ValueError(f"the MCP server {self.name} takes no token")
+        return {self.token_env: token}
+
+
 class Mixin(BaseModel):
     """A mixin written in Python: a descriptor, listed under a reference.
 
@@ -390,4 +456,26 @@ class Mixin(BaseModel):
             HostFileError: When the directory or its `spec.yaml` cannot be read.
         """
         reference, descriptor = _native.read_mixin(os.fspath(directory))
+        return cls(reference=reference, descriptor=KitDescriptor.model_validate_json(descriptor))
+
+    @classmethod
+    def mcp(cls, agent: str, *servers: McpServer) -> Mixin:
+        """The mixin that registers `servers` in the configuration of the agent `agent`.
+
+        Built by the crate. Its install commands register the servers inside the sandbox, as
+        the kit of the agent registers its MCP gateway: `claude mcp add`, as the user `agent`,
+        for `claude`. It allows their hosts. The tokens are not part of it: they are given at
+        creation, in the variables `token_env` of the servers (`McpServer.env()`), so that one
+        package serves sandboxes with tokens of their own. Its reference is
+        `/kits/docker-sandbox-mcp-<agent>`.
+
+        Raises:
+            InvalidKitError: For an agent without an MCP adapter (all but `claude` for now),
+                no server, two servers of the same name, a name or a variable that is not
+                one, or a URL that is not an http or https one or holds a character a shell
+                command cannot carry.
+        """
+        reference, descriptor = _native.mcp_mixin(
+            agent, [(server.name, server.url, server.token_env) for server in servers]
+        )
         return cls(reference=reference, descriptor=KitDescriptor.model_validate_json(descriptor))

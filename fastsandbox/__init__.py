@@ -40,6 +40,7 @@ from .kits import KitPackage as KitPackage
 from .mcp import Mcp as Mcp
 from .mixins import KitDescriptor as KitDescriptor
 from .mixins import LifecycleStep as LifecycleStep
+from .mixins import McpServer as McpServer
 from .mixins import Mixin as Mixin
 from .models import CreateRequest as CreateRequest
 from .models import CredentialsUpdate as CredentialsUpdate

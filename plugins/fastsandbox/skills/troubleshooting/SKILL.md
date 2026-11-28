@@ -26,7 +26,7 @@ Full documentation: https://aartintelligent.github.io/fastsandbox/guides/trouble
 | `UnsupportedVersionError` (`found`, `supported`) | the daemon runs an API version this release was not checked against | upgrade fastsandbox; to go on at your own risk, `client = await fastsandbox.connect(version_policy="warn")` and `FastSandbox(client=client)` |
 | the first run of a kit waits for minutes | the daemon pulls the image of the base kit, once; or a cache given the `sbx` CLI compiles the kit | wait for the pull, which later runs skip; compile a kit only the CLI resolves ahead of time, `fastsandbox kits compile <kit>` |
 | `KitForgeError` | the kit is one only the `sbx` CLI resolves (a local base kit, a mixin given by reference), or the kit policy of the daemon forbids forging | give the cache the CLI, `KitCache(sbx="sbx")`; a mixin forges once its `spec.yaml` is in the JSON subset of YAML, or written in Python (`Mixin`) |
-| `InvalidKitError` (`kit`, `reason`) | the forge refuses a kit argument, its value, or a mixin descriptor; a `Mixin` written in Python is checked as it is made | read `reason`: the values and pattern the kit declares, or what a mixin may not declare |
+| `InvalidKitError` (`kit`, `reason`) | the forge refuses a kit argument, its value, or a mixin descriptor; a `Mixin` written in Python, `Mixin.mcp()` included, is checked as it is made | read `reason`: the values and pattern the kit declares, or what a mixin may not declare |
 | `KitCompileError` | the `sbx` CLI, given to the cache, could not compile the kit, or is not on `PATH` | install the `sbx` CLI with Docker Sandboxes; run the compile by hand to see its output |
 | `KitPackageError` (`path`) | a kit package directory is missing or invalid | delete it from the kit cache (`fastsandbox info` prints where) and make it again |
 
@@ -51,6 +51,7 @@ Full documentation: https://aartintelligent.github.io/fastsandbox/guides/trouble
 | the agent fails to authenticate | its key is not in the environment of the process that runs the task, so nothing was pushed | export it in the shell that runs `fastsandbox run` (`ANTHROPIC_API_KEY` for `claude`, see the `agents` skill); without one, a secret stored with `sbx secret set` applies |
 | the agent cannot reach its service | the task set `allow_agent_hosts=False`, or denies a host the agent needs | leave `allow_agent_hosts` on, or allow the hosts yourself |
 | a host answers HTTP 403 | a rule denies it: the proxy of the sandbox answers in place of the host | read the activity log, `(await client.policy.log()).for_sandbox(name)`, and allow the host if it is needed |
+| the agent does not get the tools of a server of the host | the server given by `Mixin.mcp()` does not serve streamable HTTP at `/mcp` on the port of `McpServer.host()`, on the loopback, or refuses the token | serve on `127.0.0.1:<port>/mcp`; create with `env=server.env(token)`; `~/.claude.json` in the sandbox shows the registration |
 | a host you did not allow is reached | rules add to the policy of the daemon, which may allow everything | deny what must stay out; check with `client.policy.check(...)` |
 
 ## Where the work went

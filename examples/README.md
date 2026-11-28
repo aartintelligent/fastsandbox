@@ -156,6 +156,15 @@ agent, unless the `ssh.agentForwardingEnabled` setting is off.
 `CLAUDE_MODEL` and `CLAUDE_REASONING_EFFORT`, and in `~/.claude/settings.json`.
 It starts no agent and uses no credential.
 
+[`agent-kit-forge`](agent_kit_forge.py) makes the same sandbox from a package
+forged without the `sbx` CLI into a directory, and gives Claude Code the MCP
+server of the examples by a mixin (`Mixin.mcp`): served by the script on a
+loopback port of the host, which the sandbox reaches at `host.docker.internal`,
+registered at install time with `claude mcp add`, its bearer token, random at
+every run, given at creation (`McpServer.env`). It sends, from inside the
+sandbox, the `initialize` request Claude Code would send, and checks that the
+server received the token; it never starts Claude Code.
+
 ### The MCP variants
 
 The `-mcp` examples register their own script as a local MCP server

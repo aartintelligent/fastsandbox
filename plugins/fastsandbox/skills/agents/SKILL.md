@@ -94,7 +94,7 @@ How the agent runs:
 | Getting the code in and the work out | `WorkspaceDir`, `Uploaded`, `Mounted`, `read_text`, `download_dir` | [repository.md](reference/repository.md) |
 | Network rules and the activity log | `Network`, `allow_agent_hosts`, `ctx.client.policy.log()` | [network.md](reference/network.md) |
 | Events, progress, logs, debugging a run | `stream`, `ctx.report_progress`, `ctx.log`, `keep=True` | [follow.md](reference/follow.md) |
-| MCP tools for the agent | `ctx.sandbox.load_mcp_server` | [tools.md](reference/tools.md) |
+| MCP tools for the agent | `Mixin.mcp`, `McpServer`; `ctx.sandbox.load_mcp_server` | [tools.md](reference/tools.md) |
 | Several agents or runs at once | `max_concurrency`, `async with app`, `asyncio.gather` | [several.md](reference/several.md) |
 
 ## References
@@ -107,7 +107,8 @@ How the agent runs:
   activity log.
 - [reference/follow.md](reference/follow.md): streaming events, progress, logs,
   keeping the sandbox, interactive sessions.
-- [reference/tools.md](reference/tools.md): MCP servers loaded for the agent.
+- [reference/tools.md](reference/tools.md): MCP servers given to the agent by a
+  mixin, or loaded into the gateway of its sandbox.
 - [reference/several.md](reference/several.md): several agents on one issue,
   many runs of one agent, failures.
 

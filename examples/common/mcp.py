@@ -17,6 +17,11 @@ dependency group), in two ways:
   on a loopback port of the host, and only to requests carrying its bearer
   token, registered with a header whose `${token}` placeholder `sbx` fills
   from a secret it stores (`set_secret`).
+- **Server given by a mixin**: the same `HttpServer`, which the agent reaches
+  from the sandbox at `host.docker.internal` (`fastsandbox.McpServer.host`),
+  registered in the agent by a mixin rather than with `sbx`. The proxy of the
+  sandbox forwards its requests to the loopback of the host as
+  `localhost:<port>`.
 
 The registrations, the secrets and the `:endpoint` bindings `sbx` adds are
 removed when an example ends: `registered`, `registered_remote` and
@@ -211,12 +216,14 @@ class HttpServer:
         self._auth: _BearerOnly | None = None
         self._server: _EmbeddedServer | None = None
         self._task: asyncio.Task[None] | None = None
+        self._port = 0
         self._url = ""
 
     async def __aenter__(self) -> HttpServer:
         # The SDK protects a loopback server against DNS rebinding: requests
         # must name `127.0.0.1` or `localhost` in their `Host` header, as the
-        # gateway does with the loopback URL it is given.
+        # gateway does with the loopback URL it is given, and as the proxy of
+        # a sandbox does with the requests it forwards to `host.docker.internal`.
         self._auth = _BearerOnly(tools().streamable_http_app(host="127.0.0.1"), self._token)
         # The socket is bound before the server starts, so that the URL is
         # known: port 0 takes a free port.
@@ -239,6 +246,7 @@ class HttpServer:
                 await self._task
                 raise common.ExampleError("the MCP server stopped before it started")
             await asyncio.sleep(0.01)
+        self._port = port
         self._url = f"http://127.0.0.1:{port}/mcp"
         return self
 
@@ -263,6 +271,11 @@ class HttpServer:
     def url(self) -> str:
         """The URL of the MCP endpoint, e.g. `http://127.0.0.1:41000/mcp`."""
         return self._url
+
+    @property
+    def port(self) -> int:
+        """The loopback port it listens on."""
+        return self._port
 
     def rotate_token(self, token: str) -> None:
         """Replaces the token: requests carrying the previous one are refused from now on."""
