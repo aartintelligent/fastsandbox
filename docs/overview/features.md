@@ -25,9 +25,9 @@ links to the pages of the documentation that show it in use.
 
 | Capability | Details |
 |---|---|
-| Rules of one sandbox | Allow and deny hosts for one sandbox; the rules go with it. |
+| Rules of one sandbox | Allow and deny hosts for one sandbox; the rules go with it. Hosts are checked as the `sbx` CLI checks them, before anything is sent. |
 | Global policy | Rules, checks of a host against the policy, the activity log, profiles. |
-| Secrets | Custom secrets and credentials of services, pushed to one sandbox and injected by its proxy. |
+| Secrets | Custom secrets and credentials of services, pushed to one sandbox and injected by its proxy; the credentials the daemon withholds, named at creation and on each push. |
 
 [:lucide-arrow-right: Network and policy](../client/network.md) ·
 [Credentials](../client/credentials.md)
@@ -95,6 +95,6 @@ links to the pages of the documentation that show it in use.
 | Capability | Details |
 |---|---|
 | Fake daemon | `FakeDaemon` serves the socket API in memory and records what a run did. |
-| Fake kits | `fake_package()` writes kit packages that need neither the `sbx` CLI nor an image. |
+| Fake kits | The published kits `shell` and `claude`, served for the forge; `fake_package()` writes kit packages that need neither the `sbx` CLI nor an image. |
 
 [:lucide-arrow-right: Testing](../guides/testing.md)

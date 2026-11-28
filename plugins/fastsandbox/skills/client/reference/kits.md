@@ -111,7 +111,7 @@ From a shell, to compile with the CLI ahead of a run:
 
 ```sh
 fastsandbox kits compile ./kits/my-local-kit
-fastsandbox kits compile shell --mixin ./kits/my-mixin --arg model=fast
+fastsandbox kits compile claude --mixin ./kits/my-mixin --arg model=claude-haiku-5-5
 ```
 
 ## Example
@@ -128,7 +128,8 @@ async def main() -> None:
     package = await client.package("shell")  # forged without the sbx CLI, in memory
     print(package.kit_refs, package.compiled_api)
 
-    kit = Kit(base="shell", mixins=("./kits/my-mixin",), args={"model": "fast"})
+    # `shell` declares no kit argument: the forge would refuse one.
+    kit = Kit(base="shell", mixins=("./kits/my-mixin",))
     async with client.create(kit="shell") as sandbox, sandbox.running():
         composed = await client.package(kit)
         await composed.add_to(sandbox)  # the container is recreated

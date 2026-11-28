@@ -34,7 +34,7 @@ working.
 | [`OperationFailedError`][fastsandbox.exceptions.OperationFailedError] | the daemon reported a failure inside a successful answer: a rule change, an image pull | |
 | [`ProtocolError`][fastsandbox.exceptions.ProtocolError] | an answer of the daemon could not be decoded | |
 | [`UnsupportedVersionError`][fastsandbox.exceptions.UnsupportedVersionError] | the API version of the daemon is outside the supported range (see [The API version](index.md#the-api-version)) | `found`, `supported` |
-| [`InvalidRequestError`][fastsandbox.exceptions.InvalidRequestError] (`ValueError`) | a request was rejected before being sent | |
+| [`InvalidRequestError`][fastsandbox.exceptions.InvalidRequestError] (`ValueError`) | a request was rejected before being sent: a host a network rule cannot name (see [The hosts a rule names](network.md#the-hosts-a-rule-names)), for instance | |
 | [`HostFileError`][fastsandbox.exceptions.HostFileError] (`OSError`) | a file or directory of the host could not be accessed | `path` |
 | [`ArchiveError`][fastsandbox.exceptions.ArchiveError] | a tar archive could not be built or extracted | |
 | [`CommandFailedError`][fastsandbox.exceptions.CommandFailedError] | a checked command exited with a non-zero code (see [Commands](commands.md)) | `exit_code`, `stdout`, `stderr` |

@@ -23,6 +23,14 @@ Each takes hosts or host patterns. `|` combines rules into one `Network`,
 applied in order: a `Network` is a value, which can be named once, as `PYPI`
 here, and shared by several tasks.
 
+A host is written as the `sbx` CLI takes it, `example.com`, `*.example.com`
+or `example.com:443` for instance
+(see [The hosts a rule names](../client/network.md#the-hosts-a-rule-names)).
+A URL, a host with a path, a bare `*` or a bare IPv6 address fails the run with
+[`InvalidRequestError`][fastsandbox.exceptions.InvalidRequestError] when its
+rules are applied, before they reach the daemon; the sandbox is deleted as
+after any failure.
+
 A denied host is answered by the proxy of the sandbox in place of the host:
 `probe` then gets the status of the proxy, not an error of the connection.
 

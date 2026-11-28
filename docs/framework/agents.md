@@ -70,8 +70,13 @@ pushed as a service secret of the sandbox of the run, and of that sandbox only:
 - The proxy of the sandbox injects the secret into the requests to its service;
   the sandbox itself, and the agent, only see a placeholder.
 - The secret goes with the sandbox when the run ends.
-- When none is set, nothing is pushed, and a secret stored with
-  `sbx secret set` applies, as it does to every sandbox.
+- When none is set, nothing is pushed, and the credential the daemon holds
+  for the kit of the agent applies, a subscription or a secret stored with
+  `sbx secret set` for instance, as it does to every sandbox of that kit.
+- The daemon gives the credential a kit declares only when it authorizes it,
+  as it does for the kits forged by fastsandbox or compiled by the CLI; one it
+  withholds gets nothing from the proxy, a secret just pushed included (see
+  [Withheld credentials](../client/credentials.md#withheld-credentials)).
 
 `kiro` has no service secret in `sbx`: `KIRO_API_KEY`, when set, is passed as
 an environment variable to the agent process that `prompt` and `stream` start,

@@ -60,7 +60,7 @@ or a deployment script:
 
 ```sh
 fastsandbox kits compile claude
-fastsandbox kits compile shell --mixin ./kits/my-mixin --arg model=fast
+fastsandbox kits compile claude --mixin ./kits/my-mixin --arg model=claude-haiku-5-5
 ```
 
 ## Compositions
@@ -76,7 +76,7 @@ apart, under its [`cache_key`][fastsandbox.Kit.cache_key].
 ```python
 from fastsandbox import Kit
 
-kit = Kit(base="shell", mixins=("./kits/my-mixin",), args={"model": "fast"})
+kit = Kit(base="claude", mixins=("./kits/my-mixin",), args={"model": "claude-haiku-5-5"})
 sandbox = await client.create(kit=kit)
 ```
 
