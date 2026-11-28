@@ -24,6 +24,10 @@ MIXIN = {
     ],
 }
 
+PORT = 47814
+"""The port of the server of the host: part of the mixin, and so of the images the daemon keeps
+for it, the same at every run unless it is taken."""
+
 INITIALIZE = """
 import json, sys, urllib.request
 server = json.load(open("/home/agent/.claude.json"))["mcpServers"][sys.argv[1]]
@@ -94,7 +98,10 @@ async def test_claude_reaches_a_server_of_the_host_given_by_a_mixin(
         await writer.drain()
         writer.close()
 
-    server = await asyncio.start_server(answer, "127.0.0.1", 0)
+    try:
+        server = await asyncio.start_server(answer, "127.0.0.1", PORT)
+    except OSError:
+        server = await asyncio.start_server(answer, "127.0.0.1", 0)
     async with server:
         port = server.sockets[0].getsockname()[1]
         tools = McpServer.host("live-tools", port)
