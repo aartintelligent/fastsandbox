@@ -96,7 +96,8 @@ class LifecycleStep(_Spec):
         user: The user it runs as, e.g. `agent`, or `0` for root.
         description: What it does, shown as it runs.
         env: The variables of the sandbox it receives: an install command runs in an emptied
-            environment otherwise, which keeps only the proxy and certificate variables.
+            environment otherwise, which keeps only `PATH`, `HOME`, `USER`, `TERM` and the
+            proxy and certificate variables.
         background: Whether a startup command runs in the background.
     """
 

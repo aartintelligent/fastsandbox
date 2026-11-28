@@ -55,8 +55,8 @@ captures what it sends. It can take a few minutes for an agent kit; the kit
 images it pulls stay on the daemon, as the cache of the next sandboxes. Such a
 cache keeps its packages in `~/.cache/fastsandbox/kits`, or under
 `$XDG_CACHE_HOME`, unless given a directory, and compiles a package again when
-the daemon runs another `sbx` version. To compile ahead of time, from a shell
-or a deployment script:
+the daemon runs another `sbx` version, or when the package of its directory
+was forged. To compile ahead of time, from a shell or a deployment script:
 
 ```sh
 fastsandbox kits compile claude
@@ -68,10 +68,11 @@ fastsandbox kits compile claude --mixin ./kits/my-mixin --arg model=claude-haiku
 A [`Kit`][fastsandbox.Kit] composes a `base` kit with `mixins`, in order, and
 kit `args`, as `sbx create --kit-arg` takes them. The base is an agent or
 `shell`, a published kit reference, or, for the CLI only, the directory of a
-local kit; a mixin is a directory, whose `spec.yaml` the forge reads when it
-is written in the JSON subset of YAML, or a mixin
-[written in Python](#mixins-written-in-python). Each composition is kept
-apart, under its [`cache_key`][fastsandbox.Kit.cache_key].
+local kit, given as a path (`./kits/my-kit`): a bare name, `shell` or
+`claude`, is always the published kit. A mixin is a directory, whose
+`spec.yaml` the forge reads when it is written in the JSON subset of YAML, or
+a mixin [written in Python](#mixins-written-in-python). Each composition is
+kept apart, under its [`cache_key`][fastsandbox.Kit.cache_key].
 
 ```python
 from fastsandbox import Kit
@@ -80,10 +81,13 @@ kit = Kit(base="claude", mixins=("./kits/my-mixin",), args={"model": "claude-hai
 sandbox = await client.create(kit=kit)
 ```
 
-The forge checks the arguments as the CLI does: an argument the kit does not
-declare, or a value it refuses, raises
+The forge gives the arguments to the base kit, and checks them as the CLI
+does: an argument the kit does not declare, or a value it refuses, raises
 [`InvalidKitError`][fastsandbox.exceptions.InvalidKitError] before anything
-is created, as does a mixin it cannot take. [`KitForge`][fastsandbox.KitForge]
+is created, as does a mixin it cannot take. An argument of one kit of the
+composition, `kit.name=value`, only the CLI takes. A path to no directory, for
+the base or a mixin, raises
+[`HostFileError`][fastsandbox.exceptions.HostFileError]. [`KitForge`][fastsandbox.KitForge]
 forges without the cache, in memory or into a directory of one's choice;
 [`KitCompiler`][fastsandbox.KitCompiler] compiles with the CLI, and raises
 [`KitCompileError`][fastsandbox.exceptions.KitCompileError] when the CLI
@@ -104,9 +108,10 @@ takes it as it takes a directory:
   or a program and its arguments: run once, when the sandbox is created
   (`with_install`), or at each of its starts (`with_startup`, in the
   background with `in_background()`), as a user of the sandbox (`as_user`).
-  An install command runs in an emptied environment, which keeps only the
-  proxy and certificate variables: `with_env(*names)` gives it variables of
-  the sandbox, `with_gateway_env()` those that name its MCP gateway.
+  An install command runs in an emptied environment, which keeps only
+  `PATH`, `HOME`, `USER`, `TERM` and the proxy and certificate variables:
+  `with_env(*names)` gives it variables of the sandbox, `with_gateway_env()`
+  those that name its MCP gateway.
 - `with_network_allow(*hosts)` and `with_network_deny(*hosts)` add rules while
   the sandbox runs, each host in a form the CLI takes (`host`, `*.domain`,
   `host:port`, a CIDR prefix); a deny wins over any allow.

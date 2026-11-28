@@ -24,11 +24,13 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, ConfigDict
 
 from . import _native
-from .exceptions import KitForgeError
+from .exceptions import HostFileError, KitForgeError
 from .mixins import Mixin
 from .models import Created, CreateRequest, PackageImage, SwapOutcome, wire
 
 if TYPE_CHECKING:
+    from collections.abc import Hashable
+
     from .client import Client
     from .sandbox import Sandbox
 
@@ -220,7 +222,8 @@ class KitForge:
                 a local base kit, a mixin given by reference), or the kit policy of the
                 daemon forbids forging it.
             InvalidKitError: When the forge refuses a descriptor or a kit argument.
-            HostFileError: When a mixin directory or its `spec.yaml` cannot be read.
+            HostFileError: When the base kit is a path to no directory, or a mixin directory
+                or its `spec.yaml` cannot be read.
         """
         if isinstance(kit, str):
             kit = Kit(base=kit)
@@ -304,10 +307,13 @@ class Kit(BaseModel):
 
     Attributes:
         base: The base kit: an agent or `shell`, a kit reference, or the
-            directory of a local kit.
+            directory of a local kit, given as a path (`./my-kit`). A bare name
+            is always the published kit of that name.
         mixins: Mixin kits composed on top of the base, in order: directories,
             mixins written in Python (`Mixin`), or, for the CLI only, references.
-        args: Kit arguments, as `sbx create --kit-arg` takes them.
+        args: Kit arguments, as `sbx create --kit-arg` takes them. The forge
+            gives them to the base kit; an argument of one kit of the
+            composition, `kit.name`, only the CLI takes.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -332,7 +338,9 @@ class Kit(BaseModel):
         digest = hashlib.sha256(
             json.dumps(self.model_dump(mode="json"), sort_keys=True).encode()
         ).hexdigest()[:12]
-        slug = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(self.base).name).strip("-") or "kit"
+        # No dot: the package is written beside its directory, under the name of the
+        # directory with the extension `.staging` in place of whatever follows its last dot.
+        slug = re.sub(r"[^A-Za-z0-9_-]+", "-", Path(self.base).name).strip("-") or "kit"
         return f"{slug}-{digest}"
 
 
@@ -346,7 +354,9 @@ class KitCache:
     (`KitCompiler`), which can take a few minutes for an agent kit, into its directory.
 
     A package is used again while it suits the daemon: one compiled by the CLI for the `sbx`
-    version it runs, one forged for the API it speaks.
+    version it runs, one forged for the API it speaks. A cache that compiles with the CLI only
+    takes the packages the CLI compiled, so that a package forged into its directory is
+    compiled again.
     """
 
     def __init__(
@@ -373,7 +383,7 @@ class KitCache:
         self.directory = Path(directory) if directory is not None else None
         self._sbx = sbx
         self._timeout = timeout
-        self._locks: dict[tuple[str, str], asyncio.Lock] = {}
+        self._locks: dict[Hashable, tuple[asyncio.AbstractEventLoop, asyncio.Lock]] = {}
         self._packages: dict[tuple[str, str], KitPackage] = {}
 
     @classmethod
@@ -391,24 +401,27 @@ class KitCache:
             KitForgeError: When the kit is one only the `sbx` CLI resolves, for a cache
                 that forges.
             InvalidKitError: When the forge refuses a descriptor or a kit argument.
+            HostFileError: When a path of the kit is no directory the forge can read, for a
+                cache that forges.
             KitCompileError: When the `sbx` CLI cannot compile the kit, for a cache that
                 compiles.
         """
         if isinstance(kit, str):
             kit = Kit(base=kit)
         key = (str(client.socket_path), kit.cache_key)
-        lock = self._locks.setdefault(key, asyncio.Lock())
-        async with lock:
+        output = self.directory / kit.cache_key if self.directory is not None else None
+        compiled = self._sbx is not None
+        # One package directory is written by one call at a time, whatever the daemon.
+        async with self._lock(output if output is not None else key):
             held = self._packages.get(key)
-            if held is not None and suits(held, client):
+            if held is not None and suits(held, client, compiled=compiled):
                 return held
-            output = self.directory / kit.cache_key if self.directory is not None else None
             if output is not None:
                 try:
                     package: KitPackage | None = KitPackage.open(output)
                 except Exception:
                     package = None
-                if package is not None and suits(package, client):
+                if package is not None and suits(package, client, compiled=compiled):
                     self._packages[key] = package
                     return package
                 output.parent.mkdir(parents=True, exist_ok=True)
@@ -420,6 +433,19 @@ class KitCache:
             self._packages[key] = made
             return made
 
+    def _lock(self, key: Hashable) -> asyncio.Lock:
+        """The lock of `key` in the running event loop.
+
+        An asyncio lock belongs to the loop it first waits in, and a cache outlives the loops
+        of `asyncio.run`, the cache of the process above all: each loop gets its own lock.
+        """
+        loop = asyncio.get_running_loop()
+        held = self._locks.get(key)
+        if held is None or held[0] is not loop:
+            held = (loop, asyncio.Lock())
+            self._locks[key] = held
+        return held[1]
+
     def __repr__(self) -> str:
         where = str(self.directory) if self.directory is not None else "memory"
         how = f"sbx={os.fspath(self._sbx)!r}" if self._sbx is not None else "forged"
@@ -430,15 +456,26 @@ _SHARED: dict[str | None, KitCache] = {}
 """The caches `KitCache.default` gives, by value of `$FASTSANDBOX_KIT_CACHE`."""
 
 
-def suits(package: KitPackage, client: Client) -> bool:
+def suits(package: KitPackage, client: Client, *, compiled: bool = False) -> bool:
     """Whether `package` suits the daemon of `client`.
 
     A package compiled by the CLI suits the `sbx` version it was compiled with, a forged one
-    the API it was forged for.
+    the API it was forged for, unless `compiled` asks for a package the CLI compiled.
     """
     if package.compiled_with is not None:
         return package.compiled_with == client.health.version
-    return package.compiled_api == client.health.api_version
+    return not compiled and package.compiled_api == client.health.api_version
+
+
+def is_path(kit: str) -> bool:
+    """Whether the kit `kit` is given as a path, rather than by name or reference.
+
+    A path starts with `.`, `/` or `~`, or names a directory with a `/`. A bare name, `shell`
+    or `claude`, never is: it names the published kit, whatever the working directory holds.
+    """
+    if kit.startswith((".", "/", "~")):
+        return True
+    return "/" in kit and Path(kit).expanduser().is_dir()
 
 
 def published(base: str) -> str:
@@ -448,8 +485,11 @@ def published(base: str) -> str:
 
     Raises:
         KitForgeError: When `base` is the directory of a local kit.
+        HostFileError: When `base` is a path to no directory.
     """
-    if base.startswith((".", "/", "~")) or Path(base).expanduser().is_dir():
+    if is_path(base):
+        if not Path(base).expanduser().is_dir():
+            raise HostFileError(f"cannot access {base}: not a directory", path=base)
         raise KitForgeError(
             f"the base kit {base} is the directory of a local kit, which only the sbx CLI "
             'resolves: give the kit cache the CLI, KitCache(sbx="sbx")'
@@ -462,7 +502,8 @@ def published(base: str) -> str:
 def mixin_args(mixins: tuple[str | Mixin, ...]) -> list[str | tuple[str, str]]:
     """`mixins`, as the native forge takes them.
 
-    Directories, and the reference and the descriptor in JSON of those written in Python.
+    Directories, and the reference and the descriptor in JSON of those written in Python. A
+    path is given to the forge as it is, which reads it, or says it cannot.
 
     Raises:
         KitForgeError: When a mixin is not a directory, but a reference.
@@ -473,7 +514,7 @@ def mixin_args(mixins: tuple[str | Mixin, ...]) -> list[str | tuple[str, str]]:
             forged.append((mixin.reference, mixin.descriptor.model_dump_json()))
             continue
         path = Path(mixin).expanduser()
-        if not path.is_dir():
+        if not is_path(mixin) and not path.is_dir():
             raise KitForgeError(
                 f"the mixin {mixin} is not a directory: a mixin given by reference only the "
                 'sbx CLI resolves, give the kit cache the CLI, KitCache(sbx="sbx")'
