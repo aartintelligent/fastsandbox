@@ -96,7 +96,7 @@ fn classify(err: &Error, details: &Bound<'_, PyDict>) -> PyResult<&'static str> 
             }
         }
         Error::Connect { path, .. } => {
-            details.set_item("path", path)?;
+            details.set_item("path", path.to_string_lossy())?;
             "DaemonUnavailableError"
         }
         Error::Http { operation, .. } => {
@@ -124,7 +124,7 @@ fn classify(err: &Error, details: &Bound<'_, PyDict>) -> PyResult<&'static str> 
         }
         Error::InvalidRequest(_) => "InvalidRequestError",
         Error::File { path, .. } => {
-            details.set_item("path", path)?;
+            details.set_item("path", path.to_string_lossy())?;
             "HostFileError"
         }
         Error::Archive { operation, .. } => {
@@ -138,7 +138,7 @@ fn classify(err: &Error, details: &Bound<'_, PyDict>) -> PyResult<&'static str> 
             "CommandFailedError"
         }
         Error::Package { path, .. } => {
-            details.set_item("path", path)?;
+            details.set_item("path", path.to_string_lossy())?;
             "KitPackageError"
         }
         // A variant added by a newer `docker-sandbox`: still a SandboxError.

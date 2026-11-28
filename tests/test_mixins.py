@@ -146,8 +146,9 @@ def test_a_mixin_needs_a_reference_that_names_it() -> None:
 def test_a_descriptor_not_in_json_is_refused(tmp_path: Path) -> None:
     with pytest.raises(InvalidKitError, match="JSON subset of YAML"):
         KitDescriptor.parse('schemaVersion: "3"\nkind: mixin\n')
-    with pytest.raises(HostFileError):
+    with pytest.raises(HostFileError) as missing:
         Mixin.read(tmp_path / "missing")
+    assert missing.value.path == str(tmp_path / "missing")
 
 
 async def test_written_mixins_are_forged_in_order_with_those_of_directories(
