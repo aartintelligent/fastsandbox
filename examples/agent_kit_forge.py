@@ -12,7 +12,9 @@ set in its variables: the sandbox gets `CLAUDE_MODEL` and
 into `~/.claude/settings.json`.
 
 The MCP server of the examples is served by this script on a loopback port
-of the host. `Mixin.mcp` registers it in Claude Code at install time
+of the host, the same at every run unless it is taken: the port is part of
+the mixin, and so of the images the daemon keeps for it, which another port
+would add to. `Mixin.mcp` registers it in Claude Code at install time
 (`claude mcp add`, inside the sandbox): no file is written on the host and
 nothing is registered with the daemon. Its bearer token, random and different
 at every run, is given at creation in the variable the server names
@@ -75,6 +77,9 @@ SETTINGS = "/home/agent/.claude/settings.json"
 CLAUDE_CONFIG = "/home/agent/.claude.json"
 """The configuration of Claude Code in the sandbox, where `claude mcp add` registers servers."""
 
+PORT = 47813
+"""The loopback port the MCP server listens on, the same at every run; a free one when taken."""
+
 
 async def main() -> None:
     """Runs the example."""
@@ -83,9 +88,11 @@ async def main() -> None:
     token = mcp.dummy_token()
     # The proxy of the sandbox forwards the requests to `host.docker.internal`
     # to the loopback of the host, as `localhost:<port>`.
-    async with mcp.HttpServer(token) as http:
+    async with mcp.HttpServer(token, port=PORT) as http:
         tools = McpServer.host(SERVER, http.port)
         print(f"MCP server listening on {http.url}, given to Claude Code at {tools.url}")
+        if http.port != PORT:
+            print(f"the port {PORT} is taken: the mixin of this port is a new one for the daemon")
         # A remote server, called by the agent itself. A dummy bearer here;
         # for a real key, the placeholder of a `CustomSecret` for its host,
         # so that the sandbox never holds the key.

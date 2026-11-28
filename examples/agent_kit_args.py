@@ -42,10 +42,9 @@ async def main() -> None:
     # Kit arguments are part of the composition: this package is forged and
     # kept apart from the plain `claude` kit.
     package = await kit.package(client, "claude", args={"model": MODEL, "reasoningEffort": EFFORT})
-    async with (
-        client.create(fastsandbox.unique_name("example-kit-args"), kit=package) as sandbox,
-        sandbox.running(),
-    ):
+    creation = client.create(fastsandbox.unique_name("example-kit-args"), kit=package)
+    async with creation as sandbox, sandbox.running():
+        common.report_withheld(creation.created)
         output = await sandbox.exec(
             ["printenv", "CLAUDE_MODEL", "CLAUDE_REASONING_EFFORT"], check=True
         )

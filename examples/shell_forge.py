@@ -120,7 +120,7 @@ async def main() -> None:
     common.expect(not await has_rule(client, rule, ALLOWED), "the rule outlived its sandbox")
     print("the daemon removed the rules with the sandbox")
 
-    await kept(client, kit)
+    await kept(client, kit, package)
 
 
 def refusals() -> None:
@@ -213,7 +213,10 @@ def describe(package: KitPackage, client: Client) -> None:
     # A package is a creation request and the images it needs, loaded into
     # the daemon before the request is sent.
     request = package.request("example")
-    common.expect(request.kits == package.kit_refs, "the request names other kits")
+    common.expect(request.name == "example", f"the request creates {request.name}")
+    common.expect(
+        len(request.kit_artifacts) == len(request.kits), "a kit of the request has no artifact"
+    )
     print(
         f"its creation request is one for the {request.agent} agent with these kits and their "
         f"{len(request.kit_artifacts)} artifacts"
@@ -253,20 +256,27 @@ async def has_rule(client: Client, rule: str, host: str) -> bool:
     return any(r.name == rule and any(bare in resource for resource in r.resources) for r in rules)
 
 
-async def kept(client: Client, kit: Kit) -> None:
-    """Forges `kit` into `OUTPUT`, then opens it again from there, as a later process does."""
+async def kept(client: Client, kit: Kit, forged: KitPackage) -> None:
+    """Forges `kit` into `OUTPUT`, then opens it again from there, as a later process does.
+
+    The package kept holds what `forged`, the one forged in memory, holds.
+    """
     saved = await KitForge(client).forge(kit, output=OUTPUT)
     common.expect(saved.dir is not None and saved.dir.resolve() == OUTPUT, "written elsewhere")
-    common.expect(
-        all(image.path is not None for image in saved.images),
-        "an image of the saved package is not a file",
-    )
+    elsewhere = images_outside(saved, OUTPUT)
+    common.expect(not elsewhere, f"images not kept in {OUTPUT}: {', '.join(elsewhere)}")
     print(
         f"the same kit forged into {OUTPUT.relative_to(EXAMPLES)}: "
         f"its {len(saved.images)} images are files of that directory"
     )
     opened = KitPackage.open(OUTPUT)
-    common.expect(opened.kit_refs == saved.kit_refs, "the package opened holds other kits")
+    common.expect(
+        opened.kit_refs == forged.kit_refs, "the package kept holds other kits than in memory"
+    )
+    common.expect(
+        references(opened) == references(forged),
+        "the package kept holds other images than in memory",
+    )
     common.expect(
         opened.compiled_api == client.health.api_version,
         "the package opened does not suit the daemon",
@@ -275,6 +285,22 @@ async def kept(client: Client, kit: Kit) -> None:
         f"opened again from it, without forging: {len(opened.kit_refs)} kits, for the API "
         f"{opened.compiled_api} the daemon speaks"
     )
+
+
+def images_outside(package: KitPackage, directory: Path) -> list[str]:
+    """The images of `package` that are not files of `directory`."""
+    return [
+        image.reference or "(no reference)"
+        for image in package.images
+        if image.path is None
+        or not Path(image.path).resolve().is_relative_to(directory)
+        or not Path(image.path).is_file()
+    ]
+
+
+def references(package: KitPackage) -> list[str | None]:
+    """The references of the images of `package`, in order."""
+    return [image.reference for image in package.images]
 
 
 if __name__ == "__main__":

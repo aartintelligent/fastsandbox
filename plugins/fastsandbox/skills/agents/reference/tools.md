@@ -88,7 +88,9 @@ Through the gateway instead, for a server registered with
   behind a key, give the sandbox a `CustomSecret` for its host whose `env_name`
   is the variable of `with_bearer_env`, so that the sandbox sees a placeholder.
 - The token is not part of the mixin: one forged package serves sandboxes with
-  tokens of their own. A new port is a new mixin, and a new composition.
+  tokens of their own. A new port is a new mixin, and a new composition,
+  whose images the daemon keeps beside the others: serve on the same port
+  from one run to the next, not on a free one each time.
 - Name the server in the prompt so the agent reaches for its tools.
 - The gateway is dynamic by default: besides the loaded servers it offers
   `mcp-find` and `mcp-add`, so the agent can load any server registered on the

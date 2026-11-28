@@ -48,8 +48,9 @@ async def package(
             directory needs `sbx`.
         mixins: Directories of mixin kits composed on top of the base, in
             order; a composition is kept apart from its base kit.
-        args: Kit arguments (`name=value` for every kit, `kit.name=value` for
-            one), as `sbx create --kit-arg` takes them.
+        args: Kit arguments, as `sbx create --kit-arg` takes them: the forge
+            gives them to the base kit, and an argument of one kit of the
+            composition (`kit.name`) needs `sbx`.
         sbx: Compiles the kit with the `sbx` CLI instead of forging it.
 
     Raises:

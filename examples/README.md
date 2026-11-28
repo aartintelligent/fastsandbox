@@ -176,8 +176,10 @@ in `~/.claude/settings.json`. It starts no agent and uses no credential.
 forged into a directory (`KitForge`), checks that the daemon withholds no
 credential of the kit, and gives Claude Code the MCP
 server of the examples by a mixin (`Mixin.mcp`): served by the script on a
-loopback port of the host, which the sandbox reaches at `host.docker.internal`,
-registered at install time with `claude mcp add`, its bearer token, random at
+loopback port of the host, the same at every run unless it is taken (the port
+is part of the mixin, and another one would add images to the daemon), which
+the sandbox reaches at `host.docker.internal`, registered at install time
+with `claude mcp add`, its bearer token, random at
 every run, given at creation (`McpServer.env`). From inside the sandbox, the
 MCP client of the examples uses the server as Claude Code would, at the URL
 and with the header it registered in `~/.claude.json`: it lists the tools and
