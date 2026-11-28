@@ -72,6 +72,19 @@ async def test_a_kit_is_forged_into_a_directory_when_given_one(
     assert KitPackage.open(output).kit_refs == package.kit_refs
 
 
+async def test_the_images_of_a_package_on_disk_are_files_of_its_directory(
+    client: fastsandbox.Client, tmp_path: Path
+) -> None:
+    tools = mixin(tmp_path / "tools")
+    output = tmp_path / "package"
+    package = await KitForge(client).forge(Kit(base="shell", mixins=(str(tools),)), output)
+    for held in (package, KitPackage.open(output)):
+        paths = [image.path for image in held.images]
+        assert len(paths) == 1
+        assert isinstance(paths[0], str)
+        assert Path(paths[0]).is_relative_to(output)
+
+
 async def test_mixins_are_read_from_their_directories(
     client: fastsandbox.Client, tmp_path: Path
 ) -> None:

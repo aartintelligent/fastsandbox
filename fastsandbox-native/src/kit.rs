@@ -89,9 +89,10 @@ impl KitPackage {
             .map(|image| {
                 let item = PyDict::new(py);
                 // A package held in memory holds its images in memory: they
-                // have no path.
+                // have no path. The path of a file goes as a string, the type
+                // of `PackageImage.path`, which a `pathlib.Path` would fail.
                 let path = match &image.archive {
-                    ImageArchive::File(path) => Some(path),
+                    ImageArchive::File(path) => Some(path.to_string_lossy().into_owned()),
                     _ => None,
                 };
                 item.set_item("path", path)?;
