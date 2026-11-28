@@ -23,3 +23,4 @@ async def test_a_missing_daemon_is_unavailable(tmp_path: Path) -> None:
     with pytest.raises(DaemonUnavailableError) as raised:
         await fastsandbox.connect(tmp_path / "none.sock")
     assert isinstance(raised.value, ConnectionError)
+    assert raised.value.path == str(tmp_path / "none.sock")
