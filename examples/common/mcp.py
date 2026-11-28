@@ -203,17 +203,19 @@ class HttpServer:
 
     Requests that do not carry `Authorization: Bearer <token>` are answered
     `401 Unauthorized`. The token can be rotated while the server runs. Use it
-    as an async context manager: the server listens inside the block, on a
-    free port, and stops at its end.
+    as an async context manager: the server listens inside the block, on the
+    port asked for, or a free one when it is taken or none is, and stops at
+    its end.
 
     Example:
         >>> async with HttpServer(dummy_token()) as http:
         ...     print(http.url)
     """
 
-    def __init__(self, token: str) -> None:
-        """A server for the bearer token `token`, started by `async with`."""
+    def __init__(self, token: str, *, port: int = 0) -> None:
+        """A server for the bearer token `token` on `port`, started by `async with`."""
         self._token = token
+        self._wanted = port
         self._auth: _BearerOnly | None = None
         self._server: _EmbeddedServer | None = None
         self._task: asyncio.Task[None] | None = None
@@ -230,7 +232,12 @@ class HttpServer:
         # known: port 0 takes a free port.
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        listener.bind(("127.0.0.1", 0))
+        try:
+            listener.bind(("127.0.0.1", self._wanted))
+        except OSError:
+            if not self._wanted:
+                raise
+            listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
         config = uvicorn.Config(
             self._auth,

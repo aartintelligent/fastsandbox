@@ -35,7 +35,10 @@ composes it with the kit of its agent:
   [`tools.env(TOKEN)`][fastsandbox.McpServer.env] is that variable. The proxy
   rewrites no request to the host, so the sandbox holds the token: make it
   random, as here, and have the server refuse any other. The token is not part
-  of the mixin, so one kit serves sandboxes with tokens of their own.
+  of the mixin, so one kit serves sandboxes with tokens of their own. The port
+  is: a server on a free port, another at every run, makes each run forge a
+  new mixin, whose images the daemon keeps beside those of the last; serve on
+  the same port from one run to the next.
 
 The proxy of the sandbox forwards the requests to the loopback of the host,
 which names `localhost:<port>` in their `Host` header: a server bound to
