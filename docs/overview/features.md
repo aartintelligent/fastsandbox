@@ -41,7 +41,7 @@ links to the pages of the documentation that show it in use.
 | SSH | A byte tunnel to the SSH server of a sandbox, and `fastsandbox ssh-proxy` for the SSH client of the system. |
 | MCP gateway | The gateway mode, the gateway of a sandbox, servers loaded and unloaded. |
 | Daemon | Health, settings, log levels, disk usage, diagnostics, the resources of a sandbox. |
-| Kits | Kit packages forged without the `sbx` CLI and kept in memory, or compiled by it when asked; compositions of a kit and mixins, read from their directories or written in Python, their arguments checked; kits added to a running sandbox. |
+| Kits | Kit packages forged without the `sbx` CLI and kept in memory, or compiled by it when asked; compositions of a kit and mixins, read from their directories or written in Python, MCP servers for the agent included, their arguments checked; kits added to a running sandbox. |
 | Errors | One hierarchy under `SandboxError`, a class per kind of failure, typed attributes. |
 
 [:lucide-arrow-right: Images](../client/images.md) ·
@@ -80,6 +80,7 @@ links to the pages of the documentation that show it in use.
 | Credentials | Read from the environment of the host and pushed to the sandbox of the run only. |
 | Running modes | Unattended (`ctx.agent.prompt`), streamed step by step (`ctx.agent.stream`), or interactive (`ctx.agent.session`). |
 | Network | The hosts the agent needs are allowed ahead of the rules of the task. |
+| Tools | MCP servers given to Claude Code by a mixin of its kit, without the `sbx` CLI, or loaded into the MCP gateway of its sandbox. |
 
 [:lucide-arrow-right: Quickstart](../get-started/quickstart.md) ·
 [Agents](../framework/agents.md) ·

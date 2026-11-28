@@ -53,6 +53,10 @@ any program reads, `to_spec()` the text of its `spec.yaml`.
 | `KitDescriptor.parse(text)`, `read(path)`, `from_json(value)` | a descriptor read and checked by the crate; `to_json()`, `to_spec()` |
 | `Mixin(reference=, descriptor=)` | a descriptor listed under a path whose last part, `name`, names the mixin (`/kits/acme-tools`); need not exist. Checked as it is made: `InvalidKitError` |
 | `Mixin.read(dir)` | the mixin of a directory, under its canonical path |
+| `Mixin.mcp(agent, *servers)` | the mixin, built by the crate, that registers `McpServer`s in the agent at creation (`claude mcp add`, as `agent`) and allows their hosts; `claude` only, reference `/kits/docker-sandbox-mcp-claude` |
+| `McpServer.host(name, port)` | a server of the host on a loopback port, reached at `http://host.docker.internal:<port>/mcp`; its bearer token in `token_env`, `DOCKER_SANDBOX_MCP_<NAME>_TOKEN` |
+| `McpServer.remote(name, url)` | a remote server the agent calls; `with_bearer_env(env)` sends the variable `env` as its bearer |
+| `server.env(token) -> dict[str, str]` | the variable of the creation request that gives the server its token (`ValueError` without `token_env`) |
 
 `capabilities` holds `LifecycleCapability` (`config: LifecycleConfig`,
 `install`, `startup`) and `NetworkCapability` (`config: NetworkConfig`,
@@ -113,8 +117,10 @@ fastsandbox kits compile shell --mixin ./kits/my-mixin --arg model=fast
 ## Example
 
 ```python
+import secrets
+
 import fastsandbox
-from fastsandbox import Kit, KitCache, KitDescriptor, LifecycleStep, Mixin
+from fastsandbox import Kit, KitCache, KitDescriptor, LifecycleStep, McpServer, Mixin
 
 
 async def main() -> None:
@@ -139,6 +145,14 @@ async def main() -> None:
     async with client.create(kit=Kit(base="shell", mixins=(ready,))) as sandbox:
         print(sandbox.name, "holds ~/.ready")
 
+    # An MCP server the host serves on 127.0.0.1:47813, given to Claude Code
+    # with a token of the sandbox, which the server checks.
+    tools = McpServer.host("project-tools", 47813)
+    token = secrets.token_urlsafe(32)
+    kit = Kit(base="claude", mixins=(Mixin.mcp("claude", tools),))
+    async with client.create(kit=kit, env=tools.env(token)) as sandbox:
+        print(sandbox.name, "registers", tools.url)
+
     # A local kit only the CLI resolves: ask the CLI.
     local = await KitCache(sbx="sbx").package(client, "./kits/my-local-kit")
     print(local.dir, local.compiled_with)
@@ -162,6 +176,13 @@ if __name__ == "__main__":
   install command in the background, an unknown field, a kit argument
   (`${{ }}`). An install command runs in an emptied environment: give it
   variables with `with_env`.
+- A server of the host given by `Mixin.mcp()` listens on `127.0.0.1:<port>`:
+  the proxy forwards the requests of the sandbox there as `localhost:<port>`,
+  which the MCP Python SDK accepts as it is. Only the token tells the sandbox
+  apart from the other processes of the host: have the server check it. The
+  proxy writes no secret into requests to the host, so the sandbox holds that
+  token: make it random. The token is not part of the mixin: one package
+  serves sandboxes with tokens of their own.
 - Each composition (base, mixins, args) is kept apart.
 - After `add_to()`, the new container needs a session of its own: open a new
   `async with sandbox.running():` block.

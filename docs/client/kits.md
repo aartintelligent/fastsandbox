@@ -7,7 +7,8 @@ and every sandbox of that kit is created from it through the socket alone.
 fastsandbox forges packages without the CLI, the base kit rebuilt from its
 published image; it compiles them with the CLI only when asked. This page
 covers the cache that makes packages, compositions, mixins written in Python,
-packages themselves, and kits added to a running sandbox.
+MCP servers given to the agent by a mixin, packages themselves, and kits added
+to a running sandbox.
 
 ## The kit cache
 
@@ -127,6 +128,27 @@ takes it as it takes a directory:
   by its image, so the path need not exist. A cache given the CLI writes the
   mixin into a directory named after it, for the CLI, which lists the mixin
   under that directory.
+
+### MCP servers for the agent
+
+[`Mixin.mcp(agent, *servers)`][fastsandbox.Mixin.mcp] is a mixin the crate
+builds: it registers [`McpServer`][fastsandbox.McpServer]s in the
+configuration of the agent when the sandbox is created, `claude mcp add` for
+Claude Code, the one agent it has an adapter for, and allows their hosts. A
+server of the host ([`McpServer.host(name, port)`][fastsandbox.McpServer.host])
+is reached from the sandbox at `host.docker.internal`, with a bearer token the
+creation request gives:
+
+```python
+from fastsandbox import Kit, McpServer, Mixin
+
+tools = McpServer.host("project-tools", 47813)
+kit = Kit(base="claude", mixins=(Mixin.mcp("claude", tools),))
+sandbox = await client.create(kit=kit, env=tools.env(token))
+```
+
+See [Give it tools](../agents/tools.md#a-server-given-by-a-mixin) for the
+token, the remote servers and what the server of the host is to accept.
 
 ## Packages
 

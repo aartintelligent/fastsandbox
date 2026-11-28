@@ -578,7 +578,8 @@ class PublishedKit:
 def published_kits() -> dict[str, PublishedKit]:
     """The published kits a fake daemon serves at first: `shell`, and `claude`.
 
-    `claude` declares the network and the credential of its agent, as the real kit does.
+    `claude` declares the network and the credential of its agent, and the optional
+    `open-url@1` the `sbx` CLI leaves out as unsupported, as the real kit does.
     """
     sbx = {"type": "com.docker.sandbox/sbx@1"}
     claude = [
@@ -598,6 +599,7 @@ def published_kits() -> dict[str, PublishedKit]:
                 },
             },
         },
+        {"type": "com.docker.sandbox/open-url@1", "optional": True},
     ]
     return {
         "docker.io/sbx/shell": PublishedKit(

@@ -1,6 +1,6 @@
 ---
 name: client
-description: The low-level async client of fastsandbox, the Python client of the Docker Sandboxes (sbx) daemon socket. Load before writing or fixing code that calls `fastsandbox.connect()` or uses `Client`, `Sandbox`, `client.create()`, `sandbox.running()`, `exec()`, `attach()`, file transfers (`write_file`, `upload_dir`, archives), ports (`PortBinding`), the network policy (`client.policy`, `RuleChange`, `allow_hosts`), credentials (`CredentialsUpdate`, `CustomSecret`), images, the event and prompt streams, SSH tunnels, the MCP gateway, daemon settings, kit packages (`Kit`, `KitCache`, `KitForge`, `KitPackage`), mixins written in Python (`Mixin`, `KitDescriptor`, `LifecycleStep`), or that catches the errors of `fastsandbox.exceptions`. For tasks declared with `FastSandbox`, load the tasks skill; for coding agents, the agents skill.
+description: The low-level async client of fastsandbox, the Python client of the Docker Sandboxes (sbx) daemon socket. Load before writing or fixing code that calls `fastsandbox.connect()` or uses `Client`, `Sandbox`, `client.create()`, `sandbox.running()`, `exec()`, `attach()`, file transfers (`write_file`, `upload_dir`, archives), ports (`PortBinding`), the network policy (`client.policy`, `RuleChange`, `allow_hosts`), credentials (`CredentialsUpdate`, `CustomSecret`), images, the event and prompt streams, SSH tunnels, the MCP gateway, daemon settings, kit packages (`Kit`, `KitCache`, `KitForge`, `KitPackage`), mixins written in Python (`Mixin`, `KitDescriptor`, `LifecycleStep`), MCP servers for the agent (`McpServer`, `Mixin.mcp`), or that catches the errors of `fastsandbox.exceptions`. For tasks declared with `FastSandbox`, load the tasks skill; for coding agents, the agents skill.
 ---
 
 # The fastsandbox client
@@ -51,7 +51,8 @@ if __name__ == "__main__":
   daemon pulls the image of its base kit once, then it takes seconds, and the
   package is kept in memory. A kit only the CLI resolves (a local kit, a mixin
   given by reference) needs `KitCache(sbx="sbx")`. A mixin written in Python
-  (`Mixin`) is checked by the rules of the forge as it is made.
+  (`Mixin`) is checked by the rules of the forge as it is made; `Mixin.mcp()`
+  gives Claude Code MCP servers (`McpServer`) without the CLI.
 - **Network rules add to the daemon policy**, which may allow everything:
   `sandbox.allow_hosts()` does not block the rest, `deny_hosts()` does block.
   Rules of a sandbox go with it; a global rule (`client.policy.apply_all()`
@@ -109,7 +110,7 @@ if __name__ == "__main__":
 - [reference/ssh.md](reference/ssh.md): before opening an SSH tunnel or configuring the SSH client.
 - [reference/mcp.md](reference/mcp.md): before loading MCP servers into a sandbox or checking a registration.
 - [reference/daemon.md](reference/daemon.md): before reading or changing daemon settings, log levels or disk usage.
-- [reference/kits.md](reference/kits.md): before forging or compiling kits, composing mixins, writing a mixin in Python or adding kits to a running sandbox.
+- [reference/kits.md](reference/kits.md): before forging or compiling kits, composing mixins, writing a mixin in Python, giving the agent MCP servers by a mixin, or adding kits to a running sandbox.
 - [reference/errors.md](reference/errors.md): before catching errors or deciding on a retry.
 
 Full documentation: https://aartintelligent.github.io/fastsandbox/client/

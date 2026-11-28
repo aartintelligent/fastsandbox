@@ -40,7 +40,9 @@ work holds.
 
 ## Agents with tools
 
-The MCP gateway of a sandbox gives its agent the tools of MCP servers: a local
+An agent gets the tools of MCP servers: a server of the host or a remote one,
+registered in Claude Code by a mixin of its kit, with a token of the sandbox
+and without the `sbx` CLI; or, through the MCP gateway of its sandbox, a local
 server loaded into the gateway, a remote one behind a token the gateway
 injects, or a set chosen when the sandbox is created.
 

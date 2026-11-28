@@ -7,14 +7,16 @@
 //!
 //! Mixins written in Python cross the boundary as their reference and their
 //! descriptor in JSON: the crate checks them, as it checks those it reads
-//! from a directory, so that its rules are written once.
+//! from a directory, so that its rules are written once. So do the mixins it
+//! builds for MCP servers, which cross it as their name, URL and token
+//! variable.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use docker_sandbox::kit::{ImageArchive, KitAgent as LibAgent, KitPackage as LibPackage};
 use docker_sandbox::sandbox::CreateRequest;
-use docker_sandbox_kit::{CompileJob, KitDescriptor, Mixin};
+use docker_sandbox_kit::{Agent, CompileJob, KitDescriptor, McpServer, Mixin};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -334,11 +336,18 @@ pub(crate) fn check_mixin(reference: String, descriptor: &str) -> PyResult<()> {
 /// `InvalidKitError` when the forge would refuse the descriptor.
 #[pyfunction]
 pub(crate) fn read_mixin(dir: PathBuf) -> PyResult<(String, String)> {
-    let mixin = Mixin::read(dir).map_err(crate::error::kit_to_py)?;
-    Ok((
+    Mixin::read(dir)
+        .map(|mixin| parts(&mixin))
+        .map_err(crate::error::kit_to_py)
+}
+
+/// The reference of `mixin` and its descriptor in JSON, as Python receives
+/// them.
+fn parts(mixin: &Mixin) -> (String, String) {
+    (
         mixin.reference().to_owned(),
         mixin.descriptor().to_json().to_string(),
-    ))
+    )
 }
 
 /// The descriptor of the text of a `spec.yaml` written in JSON, in JSON.
@@ -351,6 +360,47 @@ pub(crate) fn read_mixin(dir: PathBuf) -> PyResult<(String, String)> {
 pub(crate) fn parse_descriptor(text: &str) -> PyResult<String> {
     KitDescriptor::parse(text)
         .map(|descriptor| descriptor.to_json().to_string())
+        .map_err(crate::error::kit_to_py)
+}
+
+/// An MCP server as it crosses the boundary: its name, the URL of its
+/// endpoint, and the variable of its bearer token, if it takes one.
+type ServerParts = (String, String, Option<String>);
+
+/// The MCP server named `name` that a process of the host serves on `port` of
+/// its loopback: its name, its URL as the sandbox reaches it, and the
+/// variable of its bearer token.
+#[pyfunction]
+pub(crate) fn mcp_host_server(name: String, port: u16) -> ServerParts {
+    let server = McpServer::host(name, port);
+    (
+        server.name().to_owned(),
+        server.url().to_owned(),
+        server.token_env().map(str::to_owned),
+    )
+}
+
+/// The mixin that registers `servers` in the configuration of the agent
+/// named `agent`, built by the crate: its reference and its descriptor in
+/// JSON.
+///
+/// # Errors
+///
+/// Raises `InvalidKitError` for an agent `sbx` does not know or one without an
+/// MCP adapter, no server, two servers of the same name, or a name, a URL or
+/// a variable the crate refuses.
+#[pyfunction]
+pub(crate) fn mcp_mixin(agent: &str, servers: Vec<ServerParts>) -> PyResult<(String, String)> {
+    let agent: Agent = agent.parse().map_err(crate::error::kit_to_py)?;
+    let servers = servers.into_iter().map(|(name, url, token_env)| {
+        let server = McpServer::remote(name, url);
+        match token_env {
+            Some(env) => server.with_bearer_env(env),
+            None => server,
+        }
+    });
+    Mixin::mcp(agent, servers)
+        .map(|mixin| parts(&mixin))
         .map_err(crate::error::kit_to_py)
 }
 

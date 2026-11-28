@@ -20,6 +20,8 @@
 
 ::: fastsandbox.LifecycleStep
 
+::: fastsandbox.McpServer
+
 ::: fastsandbox.mixins.LifecycleCapability
 
 ::: fastsandbox.mixins.LifecycleConfig

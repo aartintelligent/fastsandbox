@@ -80,6 +80,10 @@ and `-automation`, unattended on a task whose tests fail, checked afterwards.
 
 [`agent-kit-args`][agent-kit-args] chooses the model and the effort of the
 `claude` kit when it is forged (`Kit(args=…)`), without starting the agent.
+[`agent-kit-forge`][agent-kit-forge] forges the same kit into a directory and
+gives Claude Code an MCP server of the host by a mixin
+([`Mixin.mcp`](../agents/tools.md)), reached from the sandbox with its own
+token.
 
 [base]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/base.py
 [daemon]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/daemon.py
@@ -129,3 +133,4 @@ and `-automation`, unattended on a task whose tests fail, checked afterwards.
 [agent-opencode-mcp]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/agent_opencode_mcp.py
 [agent-opencode-automation]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/agent_opencode_automation.py
 [agent-kit-args]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/agent_kit_args.py
+[agent-kit-forge]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/agent_kit_forge.py

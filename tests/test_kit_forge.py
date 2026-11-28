@@ -51,6 +51,13 @@ async def test_an_agent_kit_carries_its_agent_and_its_hosts(
     assert package.agent is not None
     assert package.agent.binary == "claude"
     assert package.agent.hosts() == ["api.anthropic.com"]
+    # The capability the kit declares and the CLI does not support is left out, as by the CLI.
+    artifact = package.kit_artifacts[0]
+    effective = [capability["type"] for capability in artifact["v3Effective"]["capabilities"]]
+    assert "com.docker.sandbox/open-url@1" not in effective
+    assert artifact["v3Selection"]["skipped"][-1]["decisions"][0]["message"] == (
+        "unsupported capability type com.docker.sandbox/open-url@1"
+    )
     sandbox = await client.create("job-1", kit=package)
     assert sandbox.name == "job-1"
     assert daemon.sandboxes["job-1"]["request"]["kits"] == package.kit_refs
