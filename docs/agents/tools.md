@@ -105,8 +105,9 @@ name cannot be loaded together.
 ## Examples
 
 `agent-kit-forge` gives Claude Code, by a mixin, an MCP server it serves on
-the host, and checks from inside the sandbox that the server receives the
-token given at creation, without starting the agent. Each agent has an `-mcp`
+the host, and uses it from inside the sandbox as Claude Code would, at the URL
+and with the token Claude Code registered: it lists the tools and calls one,
+without starting the agent. Each agent has an `-mcp`
 example, which serves an MCP server from the host through the gateway and has
 the agent call it:
 

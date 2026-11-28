@@ -178,9 +178,11 @@ credential of the kit, and gives Claude Code the MCP
 server of the examples by a mixin (`Mixin.mcp`): served by the script on a
 loopback port of the host, which the sandbox reaches at `host.docker.internal`,
 registered at install time with `claude mcp add`, its bearer token, random at
-every run, given at creation (`McpServer.env`). It sends, from inside the
-sandbox, the `initialize` request Claude Code would send, and checks that the
-server received the token; it never starts Claude Code.
+every run, given at creation (`McpServer.env`). From inside the sandbox, the
+MCP client of the examples uses the server as Claude Code would, at the URL
+and with the header it registered in `~/.claude.json`: it lists the tools and
+calls `sum`, and the server checks the token of every request. It never starts
+Claude Code.
 
 ### The MCP variants
 

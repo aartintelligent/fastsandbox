@@ -21,7 +21,8 @@ dependency group), in two ways:
   from the sandbox at `host.docker.internal` (`fastsandbox.McpServer.host`),
   registered in the agent by a mixin rather than with `sbx`. The proxy of the
   sandbox forwards its requests to the loopback of the host as
-  `localhost:<port>`.
+  `localhost:<port>`; `SandboxClient` reaches it the same way, with the
+  headers the agent registered.
 
 The registrations, the secrets and the `:endpoint` bindings `sbx` adds are
 removed when an example ends: `registered`, `registered_remote` and
@@ -505,7 +506,9 @@ class SandboxClient:
 
     It talks to the gateway exactly as the agent of the sandbox would: from
     inside, through the proxy of the sandbox, which adds the credential of the
-    gateway on the way.
+    gateway on the way. A server that checks a token of its own, such as the
+    server of the host a mixin registers, gets the headers the agent
+    registered for it (`session(headers=...)`).
     """
 
     def __init__(self, sandbox: Sandbox, command: Sequence[str]) -> None:
@@ -542,15 +545,27 @@ class SandboxClient:
             raise common.ExampleError("the client printed no result")
         return session.calls[0].text_or_raise()
 
-    async def session(self, url: str, calls: Sequence[tuple[str, Mapping[str, Any]]]) -> Session:
+    async def session(
+        self,
+        url: str,
+        calls: Sequence[tuple[str, Mapping[str, Any]]],
+        *,
+        headers: Mapping[str, str] | None = None,
+    ) -> Session:
         """Opens a session with `url` and makes `calls`, in order, in that session.
+
+        `headers` go with every request of the session, a bearer token for
+        instance.
 
         Raises:
             ExampleError: When the client cannot connect or a call breaks the
                 session; a tool reporting an error is a `CallOutcome` with
                 `is_error` set.
         """
-        command = [*self._command, url]
+        command = list(self._command)
+        for name, value in (headers or {}).items():
+            command += ["--header", f"{name}: {value}"]
+        command.append(url)
         for tool, arguments in calls:
             command += [tool, json.dumps(arguments)]
         output = await self._sandbox.exec(command)
