@@ -1,16 +1,17 @@
-"""Helpers shared by the client and the framework: durations, names, awaitables."""
+"""Helpers shared by the client and the framework: durations, names, awaitables, loops."""
 
 from __future__ import annotations
 
+import asyncio
 import re
 import secrets
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable
+    from collections.abc import Awaitable, Callable
 
-__all__ = ["as_coroutine", "parse_timeout", "unique_name"]
+__all__ = ["PerLoop", "as_coroutine", "parse_timeout", "unique_name"]
 
 
 _DURATION = re.compile(r"(\d+(?:\.\d+)?)\s*(ms|s|m|h|d)")
@@ -50,3 +51,29 @@ def unique_name(prefix: str = "fastsandbox") -> str:
 async def as_coroutine[T](awaitable: Awaitable[T]) -> T:
     """`awaitable` as a coroutine, which `run_coroutine_threadsafe` requires."""
     return await awaitable
+
+
+class PerLoop[T]:
+    """A value made once per event loop, such as an asyncio lock or semaphore.
+
+    An asyncio lock or semaphore belongs to the loop it first waits in, and raises
+    `RuntimeError` when it waits in another: one held across the loops of `asyncio.run`, by an
+    application or a kit cache, is made again in each. What it bounds, it bounds within one
+    loop.
+    """
+
+    def __init__(self, make: Callable[[], T]) -> None:
+        """Values made by `make`, the first time one is asked for in a loop."""
+        self._make = make
+        self._held: tuple[asyncio.AbstractEventLoop, T] | None = None
+
+    def get(self) -> T:
+        """The value of the running event loop, made now if it has none.
+
+        Raises:
+            RuntimeError: When no event loop runs.
+        """
+        loop = asyncio.get_running_loop()
+        if self._held is None or self._held[0] is not loop:
+            self._held = (loop, self._make())
+        return self._held[1]

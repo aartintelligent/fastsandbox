@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 
-from fastsandbox import FastSandbox, Sandbox, SandboxTimeoutError
+from fastsandbox import DaemonUnavailableError, FastSandbox, Sandbox, SandboxTimeoutError
 from fastsandbox.models import ExecOutput
 from fastsandbox.testing import FakeDaemon, Request, Response
 
@@ -63,3 +64,25 @@ async def test_concurrent_runs_share_the_extension(
     assert [run.result() for run in runs] == [[f"{w}.{i}" for i in range(5)] for w in words]
     assert len(daemon.requests_to("POST", "/sandbox/{name}/exec")) == 50
     assert daemon.sandboxes == {}
+
+
+@pytest.mark.parametrize("bound", ["application", "task"])
+def test_the_bounds_hold_in_one_event_loop_after_another(bound: str, tmp_path: Path) -> None:
+    # No daemon: each run waits for its connection while it holds its slot.
+    app = FastSandbox(
+        "ci",
+        socket=str(tmp_path / "none.sock"),
+        max_concurrency=1 if bound == "application" else None,
+    )
+
+    @app.task(max_concurrency=1 if bound == "task" else None)
+    async def nothing() -> None:
+        pass
+
+    async def run_twice() -> list[BaseException | None]:
+        return await asyncio.gather(app.run("nothing"), app.run("nothing"), return_exceptions=True)
+
+    # The runs of each loop wait for one another, as `run_sync` does at each call.
+    for _ in range(2):
+        outcomes = asyncio.run(run_twice())
+        assert [type(outcome) for outcome in outcomes] == [DaemonUnavailableError] * 2

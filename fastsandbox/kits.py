@@ -27,6 +27,7 @@ from . import _native
 from .exceptions import HostFileError, KitForgeError
 from .mixins import Mixin
 from .models import Created, CreateRequest, PackageImage, SwapOutcome, wire
+from .utils import PerLoop
 
 if TYPE_CHECKING:
     from collections.abc import Hashable
@@ -383,7 +384,7 @@ class KitCache:
         self.directory = Path(directory) if directory is not None else None
         self._sbx = sbx
         self._timeout = timeout
-        self._locks: dict[Hashable, tuple[asyncio.AbstractEventLoop, asyncio.Lock]] = {}
+        self._locks: dict[Hashable, PerLoop[asyncio.Lock]] = {}
         self._packages: dict[tuple[str, str], KitPackage] = {}
 
     @classmethod
@@ -411,8 +412,10 @@ class KitCache:
         key = (str(client.socket_path), kit.cache_key)
         output = self.directory / kit.cache_key if self.directory is not None else None
         compiled = self._sbx is not None
-        # One package directory is written by one call at a time, whatever the daemon.
-        async with self._lock(output if output is not None else key):
+        # One package directory is written by one call at a time, whatever the daemon, with a
+        # lock of the running loop: the cache outlives the loops of `asyncio.run`.
+        lock = self._locks.setdefault(output if output is not None else key, PerLoop(asyncio.Lock))
+        async with lock.get():
             held = self._packages.get(key)
             if held is not None and suits(held, client, compiled=compiled):
                 return held
@@ -432,19 +435,6 @@ class KitCache:
                 made = await KitForge(client).forge(kit, output)
             self._packages[key] = made
             return made
-
-    def _lock(self, key: Hashable) -> asyncio.Lock:
-        """The lock of `key` in the running event loop.
-
-        An asyncio lock belongs to the loop it first waits in, and a cache outlives the loops
-        of `asyncio.run`, the cache of the process above all: each loop gets its own lock.
-        """
-        loop = asyncio.get_running_loop()
-        held = self._locks.get(key)
-        if held is None or held[0] is not loop:
-            held = (loop, asyncio.Lock())
-            self._locks[key] = held
-        return held[1]
 
     def __repr__(self) -> str:
         where = str(self.directory) if self.directory is not None else "memory"

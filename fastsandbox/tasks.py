@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from .dependencies.models import Parameter
     from .kits import Kit, KitPackage
     from .network import Network
+    from .utils import PerLoop
 
 __all__ = ["Task"]
 
@@ -61,7 +62,7 @@ class Task:
     parameters: list[Parameter] = field(repr=False)
     input_model: type[BaseModel] = field(repr=False)
     output: TypeAdapter[Any] | None = field(repr=False)
-    semaphore: asyncio.Semaphore | None = field(default=None, repr=False)
+    semaphore: PerLoop[asyncio.Semaphore] | None = field(default=None, repr=False)
 
     async def __call__(self, **arguments: Any) -> Any:
         """Runs the task through its application (see `FastSandbox.run`)."""
