@@ -44,7 +44,7 @@ from .models import Workspace
 from .network import Network
 from .params import Mounted, Uploaded, WorkspaceDir
 from .tasks import Task
-from .utils import as_coroutine, parse_timeout, unique_name
+from .utils import PerLoop, as_coroutine, parse_timeout, unique_name
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
@@ -99,7 +99,7 @@ class FastSandbox:
         self._kits = kits
         self._client = client
         self._socket = socket
-        self._semaphore = asyncio.Semaphore(max_concurrency) if max_concurrency else None
+        self._semaphore = _limit(max_concurrency)
         self._stack: contextlib.AsyncExitStack | None = None
         self._active: Client | None = None
 
@@ -287,7 +287,7 @@ class FastSandbox:
             parameters=parameters,
             input_model=get_input_model(task_name, fn, parameters),
             output=output,
-            semaphore=asyncio.Semaphore(max_concurrency) if max_concurrency else None,
+            semaphore=_limit(max_concurrency),
         )
         self.tasks[task_name] = task
         return task
@@ -372,7 +372,7 @@ class FastSandbox:
         async with contextlib.AsyncExitStack() as limits:
             for semaphore in (self._semaphore, task.semaphore):
                 if semaphore is not None:
-                    await limits.enter_async_context(semaphore)
+                    await limits.enter_async_context(semaphore.get())
             async with self._session() as (client, state):
                 result = await self._run_in_sandbox(client, state, task, values, on_progress)
         return task.output.validate_python(result) if task.output is not None else result
@@ -530,6 +530,13 @@ def _contents_archive(directory: str) -> bytes:
         for entry in sorted(Path(directory).iterdir()):
             archive.add(entry, arcname=entry.name)
     return buffer.getvalue()
+
+
+def _limit(max_concurrency: int | None) -> PerLoop[asyncio.Semaphore] | None:
+    """The bound of `max_concurrency` runs at once, if any, a semaphore per event loop."""
+    if not max_concurrency:
+        return None
+    return PerLoop(functools.partial(asyncio.Semaphore, max_concurrency))
 
 
 def _slug(text: str) -> str:

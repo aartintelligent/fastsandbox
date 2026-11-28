@@ -47,6 +47,10 @@ once, the others waiting for a free slot before they create theirs:
 - `FastSandbox(max_concurrency=2)`, for every run of the application;
 - `@app.task(max_concurrency=...)`, for the runs of one task.
 
+A bound counts the runs of one event loop: the runs of each `asyncio.run`, or
+of each call of `run_sync`, wait for one another, never for those of an
+earlier loop.
+
 A program that runs many tasks also starts the application once, with
 `async with app:`, so that they share one client and one lifespan (see
 [Lifespan and state](lifespan.md)).
