@@ -11,9 +11,12 @@ profile per agent `sbx` knows, with the services and environment variables of
 its credentials. A credential found in the environment is pushed to the
 sandbox as a sandbox-scoped service secret: the proxy of the sandbox injects
 it into outgoing requests, the agent never sees it, and it goes away with the
-sandbox. The secrets stored with `sbx secret set` apply to the sandbox as to
-any other; without a credential at all, the agent offers its own login inside
-the session.
+sandbox. Without one, the agent uses the credential the daemon holds for its
+kit, a subscription or a secret stored with `sbx secret set` for instance;
+without either, it offers its own login inside the session. The daemon gives
+the credential a kit declares only when it authorizes it, as it does for the
+forged kits of the examples: the creation of the sandbox and the answer to a
+push name those it withholds, and the example prints them.
 """
 
 from __future__ import annotations
@@ -103,14 +106,16 @@ async def _session(
     # agent process as they are: their values are visible inside the sandbox.
     spec = spec.model_copy(update={"env": {**spec.env, **profile.forwarded_values()}})
 
-    async with client.create(kit=package, request=request) as sandbox, sandbox.running():
+    creation = client.create(kit=package, request=request)
+    async with creation as sandbox, sandbox.running():
+        common.report_withheld(creation.created)
         pushed = await push_credentials(sandbox, profile)
         if pushed:
             print(f"credentials given to the sandbox: {', '.join(pushed)}", file=sys.stderr)
-        else:
+        elif not profile.found_credentials():
             print(
-                "no credential in the environment: the agent uses the secrets stored with "
-                "`sbx secret set`, or offers its own login",
+                "no credential in the environment: the agent uses the credential the daemon "
+                "holds for its kit, or offers its own login",
                 file=sys.stderr,
             )
         if registration is not None:
@@ -128,14 +133,22 @@ async def push_credentials(sandbox: Sandbox, profile: AgentProfile) -> list[str]
     """Pushes to `sandbox` every credential of `profile` found in the environment.
 
     Each one becomes a service secret of that sandbox only; the values are
-    never stored nor printed.
+    never stored nor printed. The daemon answers each push with the services
+    it withholds: one whose credential a kit of the sandbox declares and the
+    daemon does not authorize gets nothing from the proxy, and is printed.
 
     Returns:
-        The services pushed, e.g. `["anthropic"]`.
+        The services the proxy injects, e.g. `["anthropic"]`.
     """
     pushed = []
     for service, value in profile.found_credentials():
-        await sandbox.push_service_secret(service, value)
+        outcome = await sandbox.push_service_secret(service, value)
+        if service in outcome.withheld:
+            print(
+                f"the daemon withholds the {service} credential: the proxy injects nothing for it",
+                file=sys.stderr,
+            )
+            continue
         pushed.append(service)
     return pushed
 

@@ -2,7 +2,8 @@
 
 `main` is the whole flow of the `agent-*-automation` examples, the flow of a
 runner: forge the kit without the `sbx` CLI, create a sandbox, give it the credential found
-in the environment (else the secret stored with `sbx secret set` applies),
+in the environment (else the credential the daemon holds for the kit applies,
+unless the daemon withholds it, which the example prints),
 mount the task written on the host as its workspace, run the agent in its
 non-interactive mode with a deadline, then check the result with the
 project's own tests, and show what changed and which hosts the agent reached.
@@ -113,12 +114,13 @@ async def run(profile: AgentProfile, prompt: str) -> None:
     """
     forwarded = profile.forwarded_values()
     if not profile.found_credentials() and not forwarded:
-        # A secret stored with `sbx secret set` applies to every sandbox, and
-        # the socket does not tell whether there is one.
+        # The credential the daemon holds for the kit, a subscription or a
+        # secret stored with `sbx secret set`, applies to the sandbox, and the
+        # socket does not tell whether there is one.
         names = [name for credential in profile.credentials for name in credential.env]
         print(
             f"no credential in the environment ({', '.join([*names, *profile.forwarded_env])}): "
-            "the agent relies on the secrets stored with `sbx secret set`, since nobody can "
+            "the agent relies on the credential the daemon holds for its kit, since nobody can "
             "log in",
             file=sys.stderr,
         )
@@ -142,7 +144,9 @@ async def run(profile: AgentProfile, prompt: str) -> None:
     )
     print(f"task written to {project}, mounted as the workspace", file=sys.stderr)
 
-    async with client.create(kit=package, request=request) as sandbox, sandbox.running():
+    creation = client.create(kit=package, request=request)
+    async with creation as sandbox, sandbox.running():
+        common.report_withheld(creation.created)
         pushed = await agent.push_credentials(sandbox, profile)
         if pushed:
             print(f"credentials given to the sandbox: {', '.join(pushed)}", file=sys.stderr)

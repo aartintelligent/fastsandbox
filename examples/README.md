@@ -15,11 +15,21 @@ uv run python examples/shell_exec.py
 Every example talks to the daemon of the current user, creates the sandboxes
 it needs and deletes them when it ends, also on an error or Ctrl-C: they are
 `async with client.create(...)` blocks, which `asyncio` unwinds when it
-cancels the example. Run them as the user owning the daemon, with the `sbx`
-CLI installed: the first run of a kit compiles it once with the CLI and caches
-the package under `~/.cache/fastsandbox/kits` (`fastsandbox.KitCache`, see
-[`common/kit.py`](common/kit.py)). The kit images pulled on that occasion stay
-on the daemon, as the cache of the next sandboxes.
+cancels the example. Run them as the user owning the daemon. Their kits need
+no `sbx` CLI: the kit cache of the library (`fastsandbox.KitCache`, see
+[`common/kit.py`](common/kit.py)) forges each package through the socket
+alone, in a few seconds, and keeps it in memory for the run; the image of the
+base kit, pulled on the first run, stays on the daemon as the cache of the
+next ones. Only [`shell-kits`](shell_kits.py) asks the CLI, for its mixin
+written in YAML: it compiles it once, into `~/.cache/fastsandbox/kits`.
+The `-mcp` variants and the [MCP examples](#mcp) still register their servers
+with `sbx mcp add`.
+
+When a kit declares a credential the daemon does not authorize, the creation
+of a sandbox reports it as withheld (`Created.withheld`), and the examples
+print it: the daemon gives the sandbox none of its values. The credential of
+a published kit is authorized when its artifact is the one the CLI resolves,
+as with the packages the forge makes and those the CLI compiles.
 
 Each file opens with what it shows, what was measured and how to run it; the
 plumbing several examples need lives in [`common/`](#common), so that each
@@ -42,13 +52,14 @@ with `error: …` and exit code 1.
 | [`shell-exec`](shell_exec.py) | Commands: outputs and exit codes, `check`, users, working directory, environment, per-command deadlines, standard input, an execution followed by its identifier, the agent of the kit without a terminal |
 | [`shell-files`](shell_files.py) | Files: a configuration file, an executable script, whole directories in both directions, tar archives as they are |
 | [`shell-network`](shell_network.py) | Network policy of one sandbox: a denied host and the proxy answer, an HTTP rule narrowed to a method and a path, the rules of the sandbox, checks, activity log. The rules go with the sandbox |
-| [`shell-policy`](shell_policy.py) | The policy beyond one sandbox: a global rule added, checked and removed by identifier, failures inside a success, sandbox host and HTTP rules removed through the sandbox, the reload of the policy, host path permissions, approval prompts. The global policy ends as it began |
+| [`shell-policy`](shell_policy.py) | The policy beyond one sandbox: a global rule added, checked and removed by identifier, failures inside a success, hosts a rule cannot name refused before anything is sent (`InvalidRequestError`), sandbox host and HTTP rules removed through the sandbox, the reload of the policy, host path permissions, approval prompts. The global policy ends as it began |
 | [`shell-ports`](shell_ports.py) | A web server in the sandbox (`serve` of [`tools.py`](common/programs/tools.py)), published on a port of the host and reached from it |
-| [`shell-secrets`](shell_secrets.py) | Secrets pushed through the socket alone, with dummy values. Custom secrets: the proxy writes the value of a secret into a request to its host and leaves the placeholder of another, the sandbox holds no value, the secrets survive a restart and go with an empty list (checked from inside with `get` of [`tools.py`](common/programs/tools.py) and the public echo service `postman-echo.com`). Service credentials: recorded by the daemon, never in the sandbox |
+| [`shell-secrets`](shell_secrets.py) | Secrets pushed through the socket alone, with dummy values. Custom secrets: the proxy writes the value of a secret into a request to its host and leaves the placeholder of another, the sandbox holds no value, the secrets survive a restart and go with an empty list (checked from inside with `get` of [`tools.py`](common/programs/tools.py) and the public echo service `postman-echo.com`). Service credentials: recorded by the daemon, never in the sandbox. The answer of the daemon to each update (`CredentialsOutcome`), and the credentials it withholds |
 | [`shell-ssh`](shell_ssh.py) | SSH through the socket: the greeting read through the tunnel of the library, then the SSH client of the system with `fastsandbox ssh-proxy` as its `ProxyCommand`, as `agent` and as `root`, with no key and nothing written to `~/.ssh`. The server accepts any user: the socket is the boundary |
 | [`shell-clone`](shell_clone.py) | Clone mode (`client.create(workspace=…, clone=True)`): the sandbox works on a private clone of a repository, the source read-only; the agent commits there, and the host fetches the commits with `git fetch` through a relay of `git upload-pack` in the sandbox, the example run again |
 | [`shell-templates`](shell_templates.py) | A sandbox saved as an image, a new sandbox started from it with its changes (from a creation request stored as JSON), the image exported to a file, removed and loaded back |
 | [`shell-kits`](shell_kits.py) | A mixin kit of the examples ([`example-mixin`](kits/example-mixin/spec.yaml)) added to running sandboxes: in place (the kit list stays as it was), by a swap of the container (work in progress kept, kit list updated), then both by hand from the parts of the package |
+| [`shell-forge`](shell_forge.py) | A kit package forged through the socket alone, without the `sbx` CLI (`KitForge`): the shell kit rebuilt from its published image, a mixin written in Python (`KitDescriptor`, `LifecycleStep`: an install command given the variables of the MCP gateway, a startup command in the background, a host allowed and one denied) and one read from its directory ([`json-mixin`](kits/json-mixin/spec.yaml), JSON, `Mixin.read`). What a forged mixin may not declare, refused with its kit and its reason (`InvalidKitError`); the package forged in memory, its images too; then both mixins run in the sandbox, the network rules of the first are applied by the daemon and removed with the sandbox, and the kit is forged into a directory and opened again from it |
 | [`shell-interactive`](shell_interactive.py) | An interactive shell relayed to the local terminal, window resizing included |
 | [`shell-events`](shell_events.py) | The daemon event stream: the replay of recent state up to its sync marker, then live events while a sandbox is created, used and deleted |
 
@@ -99,8 +110,9 @@ check again:
 ## Coding agents
 
 One example per agent `sbx` knows, and an `-mcp` variant that also gives the
-agent the MCP server of the examples. Each runs the agent session in the
-local terminal; the sandbox is deleted when the session ends.
+agent the MCP server of the examples. Each forges the kit of its agent from
+`docker.io/sbx/<agent>:latest` without the `sbx` CLI, runs the agent session
+in the local terminal, and deletes the sandbox when the session ends.
 
 Like `sbx run AGENT [PATH] [-- AGENT_ARGS...]`, an example takes the directory
 the agent works on, mounted read-write at the same path, and arguments for the
@@ -134,12 +146,15 @@ its profile in `fastsandbox.agents`, the ones `FastSandbox.agent` uses.
 A key found in the environment is given to the sandbox of the example only,
 as a sandbox-scoped service secret: the proxy of the sandbox injects it on
 outgoing requests, the agent never sees it, and it goes away with the sandbox.
-The secrets stored with `sbx secret set <service>` are global: the proxy
-injects them into every sandbox, those of the examples included, and a key
-from the environment takes precedence for one sandbox. The examples never read
-them, and cannot tell whether there is one. Without any credential, the agent
-offers its own login inside the session: `/login` for Claude Code, the device
-flow for Kiro; Codex can also sign in on the host beforehand with
+Without a key, the agent uses the credential the daemon holds for its kit, a
+Claude subscription or a secret stored with `sbx secret set <service>` for
+instance, which the proxy injects into every sandbox of that kit, those of the
+examples included; a key from the environment takes precedence for one
+sandbox. The examples never read it, and cannot tell whether there is one. A
+credential the daemon withholds instead is printed at creation, and so is a
+key it withholds when the example pushes it. Without any credential, the
+agent offers its own login inside the session: `/login` for Claude Code, the
+device flow for Kiro; Codex can also sign in on the host beforehand with
 `sbx secret set openai --oauth`.
 
 The agent session opens as `sbx run` opens it
@@ -151,13 +166,15 @@ agent, unless the `ssh.agentForwardingEnabled` setting is off.
 ### Kit arguments
 
 [`agent-kit-args`](agent_kit_args.py) chooses the model and the effort of the
-`claude` kit, the arguments it declares, when the kit is compiled
-(`Kit(args=…)`, as `sbx create --kit-arg model=…`): the sandbox gets them as
-`CLAUDE_MODEL` and `CLAUDE_REASONING_EFFORT`, and in `~/.claude/settings.json`.
-It starts no agent and uses no credential.
+`claude` kit, the arguments it declares, when the kit is forged
+(`Kit(args=…)`, as `sbx create --kit-arg model=…`): the forge checks their
+values as the CLI does, a value the kit refuses being an `InvalidKitError`,
+and the sandbox gets them as `CLAUDE_MODEL` and `CLAUDE_REASONING_EFFORT`, and
+in `~/.claude/settings.json`. It starts no agent and uses no credential.
 
 [`agent-kit-forge`](agent_kit_forge.py) makes the same sandbox from a package
-forged without the `sbx` CLI into a directory, and gives Claude Code the MCP
+forged into a directory (`KitForge`), checks that the daemon withholds no
+credential of the kit, and gives Claude Code the MCP
 server of the examples by a mixin (`Mixin.mcp`): served by the script on a
 loopback port of the host, which the sandbox reaches at `host.docker.internal`,
 registered at install time with `claude mcp add`, its bearer token, random at
@@ -210,8 +227,10 @@ The command is the headless command of the agent's profile in
 run in an application; the program and its run options come from the kit
 itself (`KitPackage.agent`), the non-interactive flags from the documentation
 of each agent, linked from each example. A credential is required, since
-nobody can log in: the keys of the table above, or the secrets stored with
-`sbx secret set`; without any, the example warns and the agent fails. Kiro
+nobody can log in: the keys of the table above, or the credential the daemon
+holds for the kit, a Claude subscription or a secret stored with
+`sbx secret set` for instance; without any, the example warns and the agent
+fails. Kiro
 has no service secret in `sbx`, so `KIRO_API_KEY` is passed to the agent
 process as is and is visible inside the sandbox.
 
@@ -226,8 +245,8 @@ agent reached, from the activity log of the proxy.
 
 | Module | Holds |
 |---|---|
-| [`__init__.py`](common/__init__.py) | `connect`, `main` (the outcome of an example in one line), `expect` |
-| [`kit.py`](common/kit.py) | Kit packages through the kit cache of the library: a kit alone, composed with a mixin, or with kit arguments |
+| [`__init__.py`](common/__init__.py) | `connect`, `main` (the outcome of an example in one line), `expect`, `report_withheld` (the credentials the daemon withholds from a sandbox it created) |
+| [`kit.py`](common/kit.py) | Kit packages through the kit cache of the library, forged without the `sbx` CLI or compiled by it when asked: a kit alone, composed with a mixin, or with kit arguments |
 | [`terminal.py`](common/terminal.py) | The local terminal relayed to an interactive session: raw mode, window resizing, end of input |
 | [`host.py`](common/host.py) | What `sbx run` passes from the host to an agent session |
 | [`program.py`](common/program.py) | The programs of [`programs/`](common/programs/__init__.py) copied into a sandbox |

@@ -15,6 +15,12 @@ Then come the credentials of services that `sbx` knows (`github`, `openai`,
 where each comes from, and the sandbox keeps the fixed placeholders it was
 created with (`GH_TOKEN` for GitHub), never a value.
 
+Each update gets the answer of the daemon (`CredentialsOutcome`), which names
+the credentials it withholds: those a kit of the sandbox declares and the
+daemon does not authorize, whose values the proxy then never injects. The
+shell kit declares none, so the daemon withholds nothing, which the example
+checks.
+
 Everything goes through the socket: no `sbx secret` command, nothing stored by
 the CLI, and the secrets go with the sandbox. Only the dummy values leave the
 machine, to `postman-echo.com` over plain HTTP. The requests are sent by the
@@ -127,8 +133,13 @@ async def custom_secrets(sandbox: Sandbox, tools: list[str]) -> str:
         .with_custom_secret(secret)
         .with_custom_secret(CustomSecret.new([OTHER_HOST], other, OTHER_VALUE))
     )
-    await sandbox.push_credentials(secrets)
+    outcome = await sandbox.push_credentials(secrets)
     print(f"pushed two custom secrets with dummy values, for {ECHO_HOST} and {OTHER_HOST}")
+    common.expect(not outcome.withheld, f"the daemon withholds {outcome.withheld}")
+    print(
+        f"the daemon answers {outcome.message or 'nothing'!r} and withholds nothing: "
+        "the shell kit declares no credential"
+    )
 
     await expect(sandbox, tools, echo, Received.ECHO_VALUE)
     print(f"{ECHO_HOST} received the value of its secret in place of the placeholder")
@@ -202,13 +213,19 @@ async def services(sandbox: Sandbox) -> None:
     # `push_service_secret` is the shortcut of `sbx secret set github
     # --sandbox`: a value, and a source the CLI names after the sandbox
     # (`CredentialsUpdate.with_sandbox_secret`).
-    await sandbox.push_service_secret("github", GITHUB_VALUE)
+    outcome = await sandbox.push_service_secret("github", GITHUB_VALUE)
+    print(
+        f"the daemon answers {outcome.message or 'nothing'!r} to the github credential, "
+        f"sources updated: {outcome.credential_source_updates_applied}, "
+        f"withholding {outcome.withheld}"
+    )
     explicit = (
         CredentialsUpdate()
         .with_service_credential("openai", OPENAI_VALUE)
         .with_credential_source("openai", CredentialSource.env(OPENAI_SOURCE))
     )
-    await sandbox.push_credentials(explicit)
+    outcome = await sandbox.push_credentials(explicit)
+    common.expect(not outcome.withheld, f"the daemon withholds {outcome.withheld}")
     recorded = (await sandbox.inspect()).credential_sources
     for service, source in recorded.items():
         print(f"the daemon records the {service} credential, from {source}")
