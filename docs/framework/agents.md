@@ -76,7 +76,10 @@ pushed as a service secret of the sandbox of the run, and of that sandbox only:
 - The daemon gives the credential a kit declares only when it authorizes it,
   as it does for the kits forged by fastsandbox or compiled by the CLI; one it
   withholds gets nothing from the proxy, a secret just pushed included (see
-  [Withheld credentials](../client/credentials.md#withheld-credentials)).
+  [Withheld credentials](../client/credentials.md#withheld-credentials)). The
+  run logs a warning naming the credentials withheld, at the creation of the
+  sandbox or on a push, on the logger of the task, `fastsandbox.task.<name>`:
+  the agent would fail later without saying why.
 
 `kiro` has no service secret in `sbx`: `KIRO_API_KEY`, when set, is passed as
 an environment variable to the agent process that `prompt` and `stream` start,

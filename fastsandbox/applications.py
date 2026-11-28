@@ -25,6 +25,7 @@ import contextlib
 import functools
 import inspect
 import io
+import logging
 import re
 import sys
 import tarfile
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
     from datetime import timedelta
 
+    from .models import Created
     from .sandbox import Sandbox
     from .types import Lifespan, ProgressHandler
 
@@ -403,7 +405,7 @@ class FastSandbox:
         sandbox = await creation
         try:
             async with sandbox.running():
-                await self._prepare(client, task, sandbox, package, uploads)
+                await self._prepare(client, task, sandbox, package, uploads, creation.created)
                 agent = None
                 if task.agent is not None:
                     described = package.agent
@@ -458,8 +460,14 @@ class FastSandbox:
         sandbox: Sandbox,
         package: KitPackage,
         uploads: list[tuple[str, str]],
+        created: Created | None,
     ) -> None:
-        """Applies the network rules, pushes the agent credentials, uploads."""
+        """Applies the network rules, pushes the agent credentials, uploads.
+
+        The credentials the daemon withholds, at the creation of the sandbox (`created`) or
+        when a credential is pushed, are logged as a warning: the proxy injects nothing for
+        them, and an agent without its credential fails later, for no reason it can give.
+        """
         network = task.network
         if task.agent is not None and task.allow_agent_hosts and network.changes:
             described = package.agent
@@ -467,9 +475,15 @@ class FastSandbox:
             if hosts:
                 network = Network.allow(*hosts) | network
         await network.apply(sandbox)
+        withheld = set(created.withheld) if created is not None else set()
+        pushed: set[str] = set()
         if task.agent is not None:
             for service, value in task.agent.found_credentials():
-                await sandbox.push_service_secret(service, value)
+                outcome = await sandbox.push_service_secret(service, value)
+                withheld.update(outcome.withheld)
+                pushed.add(service)
+        if withheld:
+            _report_withheld(task, sandbox, withheld, pushed)
         if uploads:
             # The target may lie where only root can create it (`/work`): make
             # it as root, owned by the default user of the kit.
@@ -521,6 +535,24 @@ def _contents_archive(directory: str) -> bytes:
 def _slug(text: str) -> str:
     """`text` as a sandbox name prefix: lowercase letters, digits and dashes."""
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:40] or "task"
+
+
+def _report_withheld(task: Task, sandbox: Sandbox, withheld: set[str], pushed: set[str]) -> None:
+    """Logs the credentials the daemon withholds from the sandbox of a run of `task`.
+
+    The warning goes to the logger of the task, `fastsandbox.task.<name>`, and names the
+    credentials pushed from the environment among them: the daemon accepted those pushes,
+    and gives their values to nobody.
+    """
+    lost = sorted(withheld & pushed)
+    logging.getLogger(f"fastsandbox.task.{task.name}").warning(
+        "%s [%s] the daemon withholds the credentials %s, which the kits of the sandbox "
+        "declare: the proxy injects nothing for them%s",
+        task.name,
+        sandbox.name,
+        ", ".join(sorted(withheld)),
+        f", the values pushed from the environment for {', '.join(lost)} included" if lost else "",
+    )
 
 
 def run[T](target: Task | Awaitable[T], /, **arguments: Any) -> Any:
