@@ -7,6 +7,7 @@ Every other handle comes from it.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import os
 from pathlib import Path
@@ -27,12 +28,37 @@ from .sandboxes import Sandboxes
 from .utils import unique_name
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Mapping, Sequence
+    from collections.abc import Coroutine, Generator, Mapping, Sequence
     from types import TracebackType
 
     from .types import VersionPolicy
 
 __all__ = ["Client", "Creation", "connect"]
+
+
+async def _left_nothing(creating: Coroutine[Any, Any, Created], sandbox: Sandbox) -> Created:
+    """What `creating`, the creation of `sandbox`, answers; on a cancellation, nothing left.
+
+    The request may have reached the daemon when the caller is cancelled, by a timeout or
+    Ctrl-C: the creation then goes on to its end, and the sandbox it made is deleted. One that
+    fails made none, and the sandbox of that name the daemon refused to replace is another's,
+    left as it is. Cancelled again while it waits, it cancels the creation.
+    """
+    # `asyncio.wait` leaves the creation running when the caller is cancelled.
+    task = asyncio.ensure_future(creating)
+    try:
+        await asyncio.wait([task])
+    except asyncio.CancelledError:
+        try:
+            await asyncio.wait([task])
+        except asyncio.CancelledError:
+            task.cancel()
+            raise
+        if not task.cancelled() and task.exception() is None:
+            with contextlib.suppress(NotFoundError):
+                await sandbox.force_delete()
+        raise
+    return task.result()
 
 
 async def connect(
@@ -228,7 +254,9 @@ class Client:
 class Creation:
     """A sandbox being created.
 
-    Await it, or use it as an async context manager that deletes the sandbox on exit.
+    Await it, or use it as an async context manager that deletes the sandbox on exit. Cancelled
+    while the daemon creates the sandbox, it waits for the creation to end and deletes the
+    sandbox it made.
     """
 
     def __init__(
@@ -271,9 +299,10 @@ class Creation:
             }
         )
         if package is not None:
-            self.created = await package.create_with(self._client, request)
+            creating = package.create_with(self._client, request)
         else:
-            self.created = await self._client.sandboxes.create(request)
+            creating = self._client.sandboxes.create(request)
+        self.created = await _left_nothing(creating, self._client.sandbox(self.name))
         self._sandbox = self._client.sandbox(self.name)
         return self._sandbox
 

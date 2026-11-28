@@ -18,6 +18,11 @@ saving it as a template.
   way out, also on an error or a cancellation: stopped if it runs, then
   deleted.
 
+Either way, a creation cancelled while the daemon creates the sandbox, by a
+timeout or Ctrl-C, waits for the creation to end, then deletes the sandbox it
+made: none is left that the program never got. A sandbox of that name that
+the daemon refused to replace is another's, and is left as it is.
+
 ```python title="docs_src/client/create.py" hl_lines="8 9 14"
 --8<-- "docs_src/client/create.py"
 ```
