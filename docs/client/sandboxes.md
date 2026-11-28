@@ -24,8 +24,10 @@ saving it as a template.
 
 Once created, [`Creation.created`][fastsandbox.Creation] holds what the daemon
 answered, a [`Created`][fastsandbox.models.Created]: the identifier of the
-sandbox, its agent, its state and its MCP gateway. A sandbox runs right after
-its creation.
+sandbox, its agent, its state, its MCP gateway, and `withheld`, the
+credentials its kits declare that the daemon does not authorize (see
+[Withheld credentials](credentials.md#withheld-credentials)). A sandbox runs
+right after its creation.
 
 The arguments adjust the creation request of the kit:
 

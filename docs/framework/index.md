@@ -55,7 +55,7 @@ whatever happened, an error or a timeout included:
 flowchart TD
     A["app.run('uname')"] --> B["Validate the inputs"]
     B --> C["Connect and enter the lifespan,<br/>unless the application is started"]
-    C --> D["Compile the kit, or reuse its package"]
+    C --> D["Forge the kit, or reuse its package"]
     D --> E["Create the sandbox:<br/>workspace, mounts, environment, CPUs, memory"]
     E --> F["Hold a session: the sandbox runs"]
     F --> G["Apply the network rules, push the agent<br/>credentials, upload directories"]

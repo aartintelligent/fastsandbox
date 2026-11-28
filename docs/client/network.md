@@ -52,6 +52,30 @@ and narrowed with `with_protocols()`, `with_methods("POST")`,
 `with_path("/admin/**")` for HTTP rules, and `for_sandbox(name)`, which scopes
 the change to one sandbox.
 
+### The hosts a rule names
+
+The hosts of a rule are checked as the `sbx` CLI checks them, before anything
+is sent. A host is one of these forms:
+
+- an exact domain, `example.com`, with globs inside its labels: `?` for one
+  character, `[12]` or `[!1]` for a class;
+- leading wildcard labels, `*.example.com` for one label, `**.example.com`
+  for any number, and `**` alone for every host;
+- an IPv4 address, or a CIDR prefix, `10.0.0.0/8` or `2001:db8::1/128`;
+- any of those with a port, `example.com:443`; an IPv6 address takes its port
+  in brackets, `[2001:db8::1]:443`.
+
+Any other host raises
+[`InvalidRequestError`][fastsandbox.exceptions.InvalidRequestError] with the
+reason, and the daemon receives nothing: a URL (`https://api.example.com`), a
+host with a path (`api.example.com/v1`, which an HTTP rule takes apart with
+`with_path()`), a bare `*`, a bare IPv6 address. The daemon would store a URL
+or a path as the resource of a rule and never apply it, leaving reachable the
+host it seems to name. The check covers every change: `apply()`,
+`apply_all()`, the rules of a sandbox handle and those of a
+[task](../framework/network.md). A removal is not checked, so that a rule
+stored otherwise can still go.
+
 The daemon answers a batch of changes with HTTP 200 and reports the changes
 that failed inside it:
 [`apply(*changes)`][fastsandbox.Policy.apply] returns a result per change,

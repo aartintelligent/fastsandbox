@@ -109,10 +109,14 @@ prompt would run. Running the agent itself, with `prompt`, `stream` or
 
 The fake daemon serves what the client and the framework need for most tasks:
 the health of the daemon, the list and the life cycle of sandboxes, sessions,
-commands, files, network rules, credentials, the ports of a sandbox, and the
-list and the loading of images. A route it does not serve answers `404`: the
-event and prompt streams, the activity log of the policy, the MCP gateway and
-the settings of the daemon among them. `FakeDaemon(version=..., api_version=...)`
+commands, files, network rules, credentials, the ports of a sandbox, the list
+and the loading of images, and what the forge asks for: the pull and the
+export of its published kits, and the kit settings of the daemon
+(`daemon.settings`: `kit.allowLocalKits` and `kit.requireSignature`, which a
+test changes to see the kit policy refuse a forge). A route it does not serve
+answers `404`: the event and prompt streams, the activity log of the policy,
+the MCP gateway and the other settings of the daemon among them. It withholds
+no credential, at creation or on a push. `FakeDaemon(version=..., api_version=...)`
 sets the `sbx` version and the API version it reports, to test what a client
 does with a daemon it does not support.
 [`daemon.route(method, pattern)`][fastsandbox.testing.FakeDaemon.route] adds a
@@ -123,6 +127,15 @@ route, or replaces a built-in one, with a handler that returns a
 @daemon.route("GET", "/sandbox/{name}/ports")
 def ports(request: Request) -> Response:
     return Response(200, [{"host_port": 8080, "sandbox_port": 80, "protocol": "tcp"}])
+```
+
+A test of a program that reads the credentials the daemon withholds answers
+the push itself:
+
+```python
+@daemon.route("POST", "/sandbox/{name}/credentials")
+def withheld(request: Request) -> Response:
+    return Response(200, {"message": "Credentials updated", "withheld": ["anthropic"]})
 ```
 
 A `Response` carries a status and a JSON `body`, or instead `lines`, JSON values
