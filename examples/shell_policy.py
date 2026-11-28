@@ -11,6 +11,10 @@ paths, and the stream of approval prompts.
   global policy ends as it began.
 - The daemon answers a batch of rule changes with HTTP 200 and reports a
   failed change inside: `RuleChangeResult.is_applied` and `check()` tell it.
+- A host a rule cannot name is refused by the library, as the CLI refuses
+  it, before anything is sent (`InvalidRequestError`, not the
+  `InvalidInputError` of the daemon): a bare `*`, a bare IPv6 address, and
+  the URL and path forms the daemon would store but never apply.
 - A rule scoped to a sandbox, for a host or for an HTTP method and path, is
   removed through that sandbox: the global removal does not find it.
 - A host path permission (`Sandbox.allow_host_path`) is a grant, listed with
@@ -35,7 +39,7 @@ import common
 import fastsandbox
 from common import kit
 from fastsandbox import NotFoundError, SandboxError
-from fastsandbox.exceptions import OperationFailedError
+from fastsandbox.exceptions import InvalidInputError, InvalidRequestError, OperationFailedError
 from fastsandbox.models import NetworkCheck, Protocol, RuleChange
 
 if TYPE_CHECKING:
@@ -59,6 +63,7 @@ async def main() -> None:
 
     await global_rule(policy)
     await failed_change(policy)
+    await refused_hosts(policy)
     await policy.refresh()
     print("policy reloaded")
 
@@ -108,6 +113,28 @@ async def failed_change(policy: Policy) -> None:
         print(f"removal of a missing rule: HTTP 200, the change failed: {error}")
     else:
         raise common.ExampleError("the failed change is a success")
+
+
+async def refused_hosts(policy: Policy) -> None:
+    """Shows the hosts a rule cannot name, each refused with its reason before it is sent.
+
+    The daemon, which would store the URL and path forms and never apply them,
+    receives none of them. Should one be accepted, its rule is removed before
+    the example fails: the global policy ends as it began.
+    """
+    for host in ("*", "2001:db8::1", "https://api.example.com", "api.example.com/v1"):
+        try:
+            results = await policy.apply(RuleChange.allow(host))
+        except InvalidInputError:
+            raise common.ExampleError(f"the rule for {host} reached the daemon") from None
+        except InvalidRequestError as error:
+            print(f"host refused before it was sent: {error}")
+            continue
+        for result in results:
+            for created in result.created:
+                await policy.remove_rule(created.rule_id)
+        raise common.ExampleError(f"a rule for {host} was accepted")
+    print("a rule names host, *.domain, **, host:port, an IPv4 address, a CIDR or [IPv6]:port")
 
 
 async def sandbox_rule(policy: Policy, sandbox: Sandbox) -> None:

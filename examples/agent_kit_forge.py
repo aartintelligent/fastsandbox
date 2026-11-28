@@ -25,8 +25,9 @@ sandbox: the example only reads its registration, and never calls it.
 The kit is resolved as the CLI resolves it, the order of its effective
 capabilities included: the daemon authorizes the credential it declares,
 `anthropic`, as for a sandbox the CLI creates, and the proxy would write the
-credential stored for it into the requests of the agent. The example never
-starts Claude Code, so that none is sent.
+credential stored for it into the requests of the agent. The example checks
+that the creation withholds nothing (`Created.withheld`); it never starts
+Claude Code, so that no credential is sent.
 
 Run it with:
 
@@ -125,7 +126,11 @@ async def main() -> None:
         )
         env = {**tools.env(token), REMOTE_TOKEN: mcp.dummy_token()}
         name = fastsandbox.unique_name("example-kit-forge")
-        async with client.create(name, kit=package, env=env) as sandbox, sandbox.running():
+        creation = client.create(name, kit=package, env=env)
+        async with creation as sandbox, sandbox.running():
+            withheld = creation.created.withheld if creation.created is not None else []
+            common.expect(not withheld, f"the daemon withholds {', '.join(withheld)}")
+            print("the daemon withholds no credential: the anthropic one of the kit is authorized")
             await check_arguments(sandbox)
             await check_server(sandbox, http)
             registered = await sandbox.exec(

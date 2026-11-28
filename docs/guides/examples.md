@@ -41,13 +41,14 @@ describes each of them.
 | [`shell-exec`][shell-exec] | Commands: outputs and exit codes, `check`, users, working directory, environment, deadlines, standard input |
 | [`shell-files`][shell-files] | Files, executable scripts, whole directories in both directions, tar archives |
 | [`shell-network`][shell-network] | The network policy of one sandbox: denied hosts, HTTP rules, checks, activity log |
-| [`shell-policy`][shell-policy] | The global policy: rules added, checked and removed, host path permissions, approval prompts |
+| [`shell-policy`][shell-policy] | The global policy: rules added, checked and removed, hosts a rule cannot name refused before they are sent, host path permissions, approval prompts |
 | [`shell-ports`][shell-ports] | A web server in the sandbox, published on a port of the host |
-| [`shell-secrets`][shell-secrets] | Custom and service secrets pushed through the socket, injected by the proxy |
+| [`shell-secrets`][shell-secrets] | Custom and service secrets pushed through the socket, injected by the proxy; the answer of the daemon, and the [credentials it withholds](../client/credentials.md#withheld-credentials) |
 | [`shell-ssh`][shell-ssh] | SSH through the socket, with the tunnel of the library and with `fastsandbox ssh-proxy` |
 | [`shell-clone`][shell-clone] | Clone mode: the sandbox works on a private clone, the host fetches its commits |
 | [`shell-templates`][shell-templates] | A sandbox saved as an image, started again, exported and loaded back |
 | [`shell-kits`][shell-kits] | A mixin kit added to running sandboxes, in place and by a container swap |
+| [`shell-forge`][shell-forge] | A package forged without the `sbx` CLI, with a [mixin written in Python](../client/kits.md#mixins-written-in-python) and one read from its directory; what a mixin may not declare |
 | [`shell-interactive`][shell-interactive] | An interactive shell relayed to the local terminal, resizing included |
 | [`shell-events`][shell-events] | The event stream: the replay of recent state, then live events |
 
@@ -99,6 +100,7 @@ token.
 [shell-clone]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/shell_clone.py
 [shell-templates]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/shell_templates.py
 [shell-kits]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/shell_kits.py
+[shell-forge]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/shell_forge.py
 [shell-interactive]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/shell_interactive.py
 [shell-events]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/shell_events.py
 [mcp-gateway]: https://github.com/aartintelligent/fastsandbox/blob/main/examples/mcp_gateway.py

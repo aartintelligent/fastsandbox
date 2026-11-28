@@ -4,8 +4,9 @@ Each example shows one use of the library; the plumbing they all need lives
 here, so that their own code stays about the library:
 
 - `connect` reaches the daemon of the current user, `main` runs an example
-  and reports its failure in one line, and `expect` fails it when a check
-  does not hold;
+  and reports its failure in one line, `expect` fails it when a check does
+  not hold, and `report_withheld` prints the credentials the daemon withholds
+  from a sandbox it created;
 - `kit.package` forges a kit without the `sbx` CLI, or compiles it with the
   CLI when asked, through the kit cache of the library, and says so;
 - `terminal.relay` plugs the local terminal into an interactive session, and
@@ -31,7 +32,9 @@ import fastsandbox
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
 
-__all__ = ["ExampleError", "connect", "expect", "main"]
+    from fastsandbox.models import Created
+
+__all__ = ["ExampleError", "connect", "expect", "main", "report_withheld"]
 
 
 class ExampleError(Exception):
@@ -60,6 +63,22 @@ async def connect() -> fastsandbox.Client:
     health = client.health
     print(f"sandboxd {health.version} (API {health.api_version})", file=sys.stderr)
     return client
+
+
+def report_withheld(created: Created | None) -> None:
+    """Prints the credentials the daemon withholds from the sandbox it just created, if any.
+
+    A kit declares the credential of its agent (`anthropic` for `claude`, …),
+    and the daemon gives the sandbox its value only when it authorizes it: it
+    does for a package the forge or the `sbx` CLI made. One it withholds gets
+    nothing from the proxy, a value pushed later included. `created` is what
+    the creation answered (`Creation.created`).
+    """
+    if created is not None and created.withheld:
+        print(
+            f"the daemon withholds the credentials the kits declare: {', '.join(created.withheld)}",
+            file=sys.stderr,
+        )
 
 
 def main(example: Callable[[], Coroutine[Any, Any, None]]) -> None:
