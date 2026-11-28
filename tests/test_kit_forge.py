@@ -9,7 +9,12 @@ import pytest
 
 import fastsandbox
 from fastsandbox import Kit, KitForge, KitPackage
-from fastsandbox.exceptions import InvalidKitError, KitForgeError, OperationFailedError
+from fastsandbox.exceptions import (
+    HostFileError,
+    InvalidKitError,
+    KitForgeError,
+    OperationFailedError,
+)
 from fastsandbox.testing import FakeDaemon
 
 MIXIN = {
@@ -121,6 +126,24 @@ async def test_kits_only_the_cli_resolves_say_so(
         await KitForge(client).forge(str(local))
     with pytest.raises(KitForgeError, match="not a directory"):
         await KitForge(client).forge(Kit(base="shell", mixins=("docker.io/acme/mixin:1",)))
+
+
+async def test_a_bare_name_is_the_published_kit_whatever_the_working_directory_holds(
+    client: fastsandbox.Client, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "shell").mkdir()
+    monkeypatch.chdir(tmp_path)
+    package = await KitForge(client).forge("shell")
+    assert package.kit_refs[0].startswith("docker.io/sbx/shell@sha256:")
+
+
+async def test_a_path_to_no_directory_says_so(client: fastsandbox.Client, tmp_path: Path) -> None:
+    missing = tmp_path / "missing"
+    with pytest.raises(HostFileError) as base:
+        await KitForge(client).forge(str(missing))
+    assert base.value.path == str(missing)
+    with pytest.raises(HostFileError):
+        await KitForge(client).forge(Kit(base="shell", mixins=("./missing-mixin",)))
 
 
 async def test_the_kit_policy_of_the_daemon_is_followed(

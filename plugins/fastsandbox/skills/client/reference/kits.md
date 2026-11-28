@@ -15,10 +15,13 @@ image; it compiles them with the CLI only when asked.
 
 `Kit(base: str = "shell", mixins: tuple[str, ...] = (), args: dict[str, str] = {})`:
 `base` is an agent (`claude`, `codex`…), `shell`, a published kit reference
-(`docker.io/sbx/claude:latest`), or, for the CLI only, a local kit directory;
+(`docker.io/sbx/claude:latest`), or, for the CLI only, a local kit directory
+given as a path (`./kits/my-kit`): a bare name is always the published kit;
 `mixins`, composed in order, are directories, whose `spec.yaml` the forge reads
 in the JSON subset of YAML, or `Mixin`s written in Python; `args` are kit
-arguments, as `sbx create --kit-arg` takes them. `label` is a readable name, `cache_key` the cache directory name.
+arguments, as `sbx create --kit-arg` takes them, given by the forge to the base
+kit (`kit.name=value`, for one kit of the composition, is for the CLI only). A
+path to no directory raises `HostFileError`. `label` is a readable name, `cache_key` the cache directory name.
 `client.create(kit=...)` accepts a name, a `Kit` or a `KitPackage`.
 
 ### `KitCache`
@@ -34,7 +37,8 @@ composition on first use and keeps it:
   the API it was forged for;
 - with `sbx="sbx"`, it compiles with the CLI (`KitCompiler`) into its
   directory, `~/.cache/fastsandbox/kits` unless given one, and compiles again
-  when the daemon runs another `sbx` version.
+  when the daemon runs another `sbx` version, or when the package of its
+  directory was forged.
 
 `KitCache.default()` is the cache of the process, shared by the clients given
 none; `client.kits` is the cache of a client; `await client.package(kit)` goes
@@ -175,8 +179,9 @@ if __name__ == "__main__":
 - A `Mixin` is refused as it is made, by the rules of the forge: a host the
   CLI refuses, a URL or a path in place of a host, an empty command, an
   install command in the background, an unknown field, a kit argument
-  (`${{ }}`). An install command runs in an emptied environment: give it
-  variables with `with_env`.
+  (`${{ }}`). An install command runs in an emptied environment, which keeps
+  only `PATH`, `HOME`, `USER`, `TERM` and the proxy and certificate variables:
+  give it others with `with_env`.
 - A server of the host given by `Mixin.mcp()` listens on `127.0.0.1:<port>`:
   the proxy forwards the requests of the sandbox there as `localhost:<port>`,
   which the MCP Python SDK accepts as it is. Only the token tells the sandbox
