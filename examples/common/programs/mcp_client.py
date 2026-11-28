@@ -3,7 +3,7 @@
 It connects to a server, lists its tools, and calls some of them in one
 session:
 
-    python3 mcp_client.py <url> [<tool> <json arguments>]...
+    python3 mcp_client.py [--header '<name>: <value>']... <url> [<tool> <json arguments>]...
     python3 mcp_client.py http://mcp-gateway.docker.internal/mcp sum '{"a": 2, "b": 3}'
 
 It prints one JSON object per line — `{"server": …}`, `{"tools": [...]}`, one
@@ -13,7 +13,9 @@ can read what it saw. The MCP examples copy it into a sandbox and run it
 there, against the MCP gateway the agents of the sandbox use: its requests go
 through the HTTP proxy of the sandbox (`HTTP_PROXY`, unless `NO_PROXY` names
 the host), as those of an agent do, and the proxy adds the credential of the
-gateway on the way.
+gateway on the way. A server that checks a bearer token of its own, as the
+server of the host a mixin registers for an agent does, gets it in every
+request with `--header`, as the agent sends the headers it registered.
 
 It speaks the initialize handshake of the streamable HTTP transport: every
 message is a `POST` to the URL, answered with JSON or with a stream of
@@ -39,7 +41,7 @@ CLIENT_INFO = {"name": "fastsandbox-example-mcp-client", "version": "0.1.0"}
 TIMEOUT = 120.0
 """Deadline of one request, in seconds: the gateway may start a server on the first one."""
 
-USAGE = "usage: mcp_client.py <url> [<tool> <json arguments>]..."
+USAGE = "usage: mcp_client.py [--header '<name>: <value>']... <url> [<tool> <json arguments>]..."
 """How the program is called."""
 
 
@@ -50,9 +52,10 @@ class McpError(Exception):
 class Session:
     """An MCP session with the server at one URL."""
 
-    def __init__(self, url: str) -> None:
-        """A session with `url`, opened by `initialize`."""
+    def __init__(self, url: str, headers: dict[str, str] | None = None) -> None:
+        """A session with `url`, opened by `initialize`, sending `headers` in every request."""
         self.url = url
+        self.headers = dict(headers or {})
         self.session_id: str | None = None
         self.protocol: str | None = None
         self.server = ""
@@ -124,7 +127,9 @@ class Session:
             McpError: When the connection fails or the server answers an HTTP
                 error.
         """
+        # The headers of the transport come last: those given cannot change them.
         headers = {
+            **self.headers,
             "Accept": "application/json, text/event-stream",
             "Content-Type": "application/json",
         }
@@ -178,6 +183,14 @@ def _answer(response: Any, request_id: int) -> dict[str, Any]:
 
 def main(argv: list[str]) -> int:
     """Runs the client on its command line, and returns its exit code."""
+    headers: dict[str, str] = {}
+    while len(argv) >= 2 and argv[0] == "--header":
+        name, colon, value = argv[1].partition(":")
+        if not colon or not name.strip():
+            print(f"not a header, <name>: <value>: {argv[1]!r}", file=sys.stderr)
+            return 2
+        headers[name.strip()] = value.strip()
+        argv = argv[2:]
     if not argv or len(argv[1:]) % 2:
         print(USAGE, file=sys.stderr)
         return 2
@@ -190,7 +203,7 @@ def main(argv: list[str]) -> int:
             return 2
         calls.append((tool, arguments))
 
-    session = Session(url)
+    session = Session(url, headers)
     try:
         session.initialize()
         _print({"server": session.server})

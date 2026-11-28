@@ -16,11 +16,14 @@ of the host. `Mixin.mcp` registers it in Claude Code at install time
 (`claude mcp add`, inside the sandbox): no file is written on the host and
 nothing is registered with the daemon. Its bearer token, random and different
 at every run, is given at creation in the variable the server names
-(`McpServer.env`). The example then sends, from inside the sandbox, the
-`initialize` request Claude Code sends, to the URL and with the header it
-registered, and checks that the server received the token. The mixin also
-registers a remote server, whose bearer is read from a variable of the
-sandbox: the example only reads its registration, and never calls it.
+(`McpServer.env`). The example reads what Claude Code registered, in
+`~/.claude.json`, and runs the MCP client of the examples
+(`common/programs/mcp_client.py`) inside the sandbox, at that URL and with
+those headers: it opens a session as Claude Code would, lists the tools of
+the server and calls `sum`, and the server checks the token of every request.
+The mixin also registers a remote server, whose bearer is read from a
+variable of the sandbox: the example only reads its registration, and never
+calls it.
 
 The kit is resolved as the CLI resolves it, the order of its effective
 capabilities included: the daemon authorizes the credential it declares,
@@ -38,7 +41,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import common
 import fastsandbox
@@ -69,30 +72,8 @@ REMOTE_TOKEN = "EXAMPLE_DOCS_TOKEN"
 SETTINGS = "/home/agent/.claude/settings.json"
 """The settings of Claude Code in the sandbox, written by the install command of the kit."""
 
-REGISTERED = """
-import json, os, sys
-server = json.load(open("/home/agent/.claude.json"))["mcpServers"][sys.argv[1]]
-bearer = server.get("headers", {}).get("Authorization") == "Bearer " + os.environ[sys.argv[2]]
-print(server["type"], server["url"], bearer)
-"""
-"""Prints the type and URL Claude Code registered for the server named in its first argument,
-and whether its bearer is the content of the variable named in the second."""
-
-INITIALIZE = """
-import json, sys, urllib.request
-server = json.load(open("/home/agent/.claude.json"))["mcpServers"][sys.argv[1]]
-body = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
-    "protocolVersion": "2025-03-26", "capabilities": {},
-    "clientInfo": {"name": "agent-kit-forge", "version": "0.0.0"}}}
-headers = dict(server.get("headers", {}))
-headers["Content-Type"] = "application/json"
-headers["Accept"] = "application/json, text/event-stream"
-request = urllib.request.Request(server["url"], json.dumps(body).encode(), headers)
-print(server["type"], server["url"], urllib.request.urlopen(request, timeout=30).status)
-"""
-"""Sends, from inside the sandbox, the `initialize` request of an MCP client to the URL and
-with the headers Claude Code registered for the server named in its argument, and prints the
-status of the answer."""
+CLAUDE_CONFIG = "/home/agent/.claude.json"
+"""The configuration of Claude Code in the sandbox, where `claude mcp add` registers servers."""
 
 
 async def main() -> None:
@@ -124,7 +105,8 @@ async def main() -> None:
             f"the kit declares the arguments {', '.join(artifact['args'])}; "
             f"their values: {json.dumps(artifact['v3ArgValues'])}"
         )
-        env = {**tools.env(token), REMOTE_TOKEN: mcp.dummy_token()}
+        docs_token = mcp.dummy_token()
+        env = {**tools.env(token), REMOTE_TOKEN: docs_token}
         name = fastsandbox.unique_name("example-kit-forge")
         creation = client.create(name, kit=package, env=env)
         async with creation as sandbox, sandbox.running():
@@ -132,15 +114,9 @@ async def main() -> None:
             common.expect(not withheld, f"the daemon withholds {', '.join(withheld)}")
             print("the daemon withholds no credential: the anthropic one of the kit is authorized")
             await check_arguments(sandbox)
-            await check_server(sandbox, http)
-            registered = await sandbox.exec(
-                ["python3", "-c", REGISTERED, docs.name, REMOTE_TOKEN], check=True
-            )
-            if registered.stdout.strip() != f"http {REMOTE} True":
-                raise common.ExampleError(
-                    f"unexpected registration of {docs.name}: {registered.stdout.strip()}"
-                )
-            print(f"~/.claude.json registers {docs.name} at {REMOTE}, bearer from {REMOTE_TOKEN}")
+            registered = await registrations(sandbox)
+            await check_server(sandbox, http, registered)
+            check_remote(registered, docs.name, docs_token)
 
 
 async def check_arguments(sandbox: Sandbox) -> None:
@@ -160,20 +136,63 @@ async def check_arguments(sandbox: Sandbox) -> None:
     print(f"~/.claude/settings.json: model {MODEL}, effortLevel {EFFORT}")
 
 
-async def check_server(sandbox: Sandbox, http: mcp.HttpServer) -> None:
-    """Checks that Claude Code got the MCP server of the mixin, without starting Claude Code.
+async def registrations(sandbox: Sandbox) -> dict[str, Any]:
+    """The MCP servers Claude Code registered in the sandbox, by name, read from its configuration.
 
-    The server is to be reached from the sandbox with the token given at creation.
+    Raises:
+        ExampleError: When the configuration registers no server.
     """
-    answered = await sandbox.exec(["python3", "-c", INITIALIZE, SERVER], check=True)
-    print(f"~/.claude.json registers {SERVER}, which answers: {answered.stdout.strip()}")
-    if not answered.stdout.strip().endswith(" 200"):
-        raise common.ExampleError("the server did not answer the registered request")
+    servers = json.loads(await sandbox.read_file(CLAUDE_CONFIG)).get("mcpServers")
+    if not isinstance(servers, dict) or not servers:
+        raise common.ExampleError(f"{CLAUDE_CONFIG} registers no MCP server")
+    return servers
+
+
+async def check_server(sandbox: Sandbox, http: mcp.HttpServer, registered: dict[str, Any]) -> None:
+    """Uses the MCP server of the mixin from inside the sandbox, as Claude Code would.
+
+    The MCP client of the examples opens a session at the URL and with the
+    headers Claude Code registered, lists the tools and calls `sum`; the server
+    is to receive the token given at creation in every request. Claude Code
+    itself is not started.
+    """
+    server = registered.get(SERVER)
+    if not isinstance(server, dict) or not isinstance(server.get("url"), str):
+        raise common.ExampleError(f"{CLAUDE_CONFIG} registers no URL for {SERVER}")
+    url: str = server["url"]
+    headers = {str(key): str(value) for key, value in (server.get("headers") or {}).items()}
+    print(f"~/.claude.json registers {SERVER}: {server.get('type')} {url}")
+    client = await mcp.SandboxClient.install(sandbox)
+    session = await client.session(url, [("sum", {"a": 2, "b": 3})], headers=headers)
+    common.expect("sum" in session.tools, f"the server lists {session.tools}, no sum")
+    answer = session.calls[0].text_or_raise() if session.calls else None
+    common.expect(answer == "5", f"the server answered sum(2, 3) = {answer}")
+    print(
+        f"from inside the sandbox, the server lists {', '.join(session.tools)} "
+        "and answers sum(2, 3) = 5"
+    )
     if http.authorized == 0 or http.refused:
         raise common.ExampleError(
             f"the server received {http.authorized} requests with its token, {http.refused} without"
         )
-    print(f"the server received the token given at creation ({http.authorized} request)")
+    print(f"the server received the token given at creation ({http.authorized} requests)")
+
+
+def check_remote(registered: dict[str, Any], name: str, token: str) -> None:
+    """Checks the registration of the remote server `name`: its URL, and `token` as its bearer.
+
+    The example never calls it.
+    """
+    server = registered.get(name)
+    if not isinstance(server, dict):
+        raise common.ExampleError(f"{CLAUDE_CONFIG} registers no {name}")
+    bearer = (server.get("headers") or {}).get("Authorization") == f"Bearer {token}"
+    common.expect(
+        server.get("type") == "http" and server.get("url") == REMOTE and bearer,
+        f"unexpected registration of {name}: {server.get('type')} {server.get('url')}, "
+        f"bearer {'given' if bearer else 'not the one given'}",
+    )
+    print(f"~/.claude.json registers {name} at {REMOTE}, bearer from {REMOTE_TOKEN}")
 
 
 if __name__ == "__main__":
