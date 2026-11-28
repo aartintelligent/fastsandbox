@@ -42,8 +42,10 @@ the proxy of the sandbox injects it, the agent sees a placeholder.
   `False`, the task's rules apply alone and may cut the agent off its service.
 - **Keys come from the caller's environment** (`ANTHROPIC_API_KEY`, ...). Never
   print, log, hard-code or pass a key as an input; tell the user which variable
-  to export. If none is set, nothing is pushed and a secret stored with
-  `sbx secret set` applies.
+  to export. If none is set, nothing is pushed and the credential the daemon
+  holds for the kit applies (a subscription, a secret stored with
+  `sbx secret set`). A credential the daemon withholds gets nothing from the
+  proxy: the run logs a warning naming it on `fastsandbox.task.<name>`.
 - **`kiro` is the exception**: `sbx` has no service secret for it, so
   `KIRO_API_KEY` is given as an environment variable to the agent process and
   its value is visible inside the sandbox.

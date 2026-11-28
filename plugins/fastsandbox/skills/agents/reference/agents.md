@@ -28,7 +28,11 @@ Model provider keys (`docker-agent`, `opencode`), each pushed when set:
 Every credential found is pushed, before the task runs, as a service secret of
 the run's sandbox only: the proxy injects it into the requests to that
 service, the agent sees a placeholder, and it goes with the sandbox. Nothing
-set: nothing pushed, and a secret stored with `sbx secret set` applies.
+set: nothing pushed, and the credential the daemon holds for the kit applies,
+a subscription or a secret stored with `sbx secret set`. A credential the
+daemon withholds, at creation or on a push, gets nothing from the proxy; the
+run logs a warning naming it on the logger of the task,
+`fastsandbox.task.<name>`.
 `kiro`'s `KIRO_API_KEY` is passed as an environment variable to the agent
 process that `prompt` and `stream` start: its value is visible in the sandbox.
 
